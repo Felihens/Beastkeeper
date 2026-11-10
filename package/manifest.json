@@ -1,0 +1,9 @@
+{
+  "name": "Beastkeeper",
+  "version_number": "0.1.0",
+  "website_url": "https://github.com/Felihens/Beastkeeper",
+  "description": "Catch animals with a lasso, tame them with a halter, saddle and ride them (even the sea serpent). Tie them up, keep them home with a totem, heal them with food and breed hares in every colour.",
+  "dependencies": [
+    "denikson-BepInExPack_Valheim-5.4.2351"
+  ]
+}

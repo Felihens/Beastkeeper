@@ -1,0 +1,315 @@
+<title>Beastkeeper Hare Fur Mask</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Spectral+SC:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a workbench. The 3D hare fills the left, a narrow tool rail on the right (stacked under it on phones). */
+:root {
+  --bg: #e9e4dc; --panel: #f5f1ea; --ink: #2b241d; --muted: #6f6357; --line: #d3c9bb;
+  --accent: #8a3b22; --accent-ink: #fff7ef; --stage: #cfc6b8; --field: #fffdf9; --ok: #3d6b35; --warn: #9a5b12;
+  --display: "Spectral SC", Georgia, serif;
+  --body: "IBM Plex Sans", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #1d1915; --panel: #26211c; --ink: #ece4d8; --muted: #a89a89; --line: #3a322a;
+  --accent: #d07a52; --accent-ink: #1d1915; --stage: #2e2822; --field: #1a1612; --ok: #8cc47e; --warn: #e2a85a; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #1d1915; --panel: #26211c; --ink: #ece4d8; --muted: #a89a89; --line: #3a322a;
+  --accent: #d07a52; --accent-ink: #1d1915; --stage: #2e2822; --field: #1a1612; --ok: #8cc47e; --warn: #e2a85a; color-scheme: dark }
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--ink); font-family: var(--body); }
+.wrap { height: 100%; display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 16px;
+  padding-block: 16px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); box-sizing: border-box; }
+.stage { position: relative; min-height: 0; min-width: 0; background: var(--stage); border-radius: 6px; overflow: hidden; }
+.stage canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+.hint { position: absolute; left: 12px; bottom: 10px; right: 12px; font-size: 12px; color: var(--muted); pointer-events: none; }
+.rail { min-width: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; }
+h1 { font-family: var(--display); font-weight: 600; font-size: 22px; margin: 0; letter-spacing: .02em; text-wrap: balance; }
+.lead { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
+section { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+.label { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 600; }
+.seg { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
+.seg.two { grid-template-columns: repeat(2, 1fr); }
+button { font: inherit; font-size: 13px; padding: 7px 8px; border-radius: 4px; border: 1px solid var(--line); background: var(--field); color: var(--ink); cursor: pointer; }
+button:hover { border-color: var(--accent); }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
+.row { display: flex; gap: 8px; align-items: center; }
+.row > input[type=range] { flex: 1; min-width: 0; }
+.val { font-family: var(--mono); font-size: 12px; width: 44px; text-align: right; font-variant-numeric: tabular-nums; }
+.swatch { width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--line); flex: none; }
+.status { font-size: 12px; color: var(--muted); min-height: 1.4em; }
+.status.ok { color: var(--ok); } .status.warn { color: var(--warn); }
+.mono { font-family: var(--mono); font-size: 12px; }
+@media (max-width: 760px) {
+  .wrap { grid-template-columns: 1fr; grid-template-rows: 62vh auto; height: auto; }
+  .rail { overflow: visible; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="wrap">
+  <div class="stage" id="stage">
+    <div class="hint" id="hint">Left drag paints · right drag turns the hare · wheel zooms</div>
+  </div>
+  <div class="rail">
+    <div>
+      <h1>Hare fur mask</h1>
+      <p class="lead">Paint white where a baby hare takes its own colour (the fur). Leave black where it keeps the hare's look: eyes, nose, inside the ears. It starts all white, the way babies look now.</p>
+    </div>
+
+    <section>
+      <span class="label">Tool</span>
+      <div class="seg" role="group" aria-label="Tool">
+        <button id="tBrush" aria-pressed="true">Paint</button>
+        <button id="tErase" aria-pressed="false">Erase</button>
+        <button id="tWand" aria-pressed="false">Same colour</button>
+      </div>
+      <div class="row"><label for="size" class="label" style="width:64px">Brush</label><input id="size" type="range" min="2" max="80" value="18"><span class="val" id="sizeV">18 px</span></div>
+      <div class="row"><label for="tol" class="label" style="width:64px">Match</label><input id="tol" type="range" min="2" max="80" value="18"><span class="val" id="tolV">18</span></div>
+      <p class="lead" id="toolHelp">Paint adds fur, Erase takes it away. Same colour: click the hare and every spot of its texture with that colour is added (with Erase held down by Shift, taken away).</p>
+      <div class="seg two" id="touchRow" hidden>
+        <button id="mPaint" aria-pressed="true">Touch paints</button>
+        <button id="mTurn" aria-pressed="false">Touch turns</button>
+      </div>
+    </section>
+
+    <section>
+      <span class="label">Look</span>
+      <div class="seg" role="group" aria-label="View">
+        <button id="vBaby" aria-pressed="true">Baby</button>
+        <button id="vMask" aria-pressed="false">Mask</button>
+        <button id="vPlain" aria-pressed="false">Plain hare</button>
+      </div>
+      <div class="row"><span class="swatch" id="sw"></span><label for="hue" class="label" style="width:40px">Hue</label><input id="hue" type="range" min="0" max="1000" value="580"><button id="rnd">Random</button></div>
+    </section>
+
+    <section>
+      <span class="label">Whole mask</span>
+      <div class="seg">
+        <button id="undo">Undo</button>
+        <button id="all">All fur</button>
+        <button id="none">No fur</button>
+      </div>
+    </section>
+
+    <section>
+      <span class="label">Done</span>
+      <button class="primary" id="save">Save for the mod</button>
+      <button id="dl" hidden>Download hare_mask.png</button>
+      <div class="status" id="status">Not saved yet.</div>
+    </section>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/controls/OrbitControls.js"></script>
+<script id="hare" type="application/json">__HARE__</script>
+<script>
+// ---------- data
+const HARE = JSON.parse(document.getElementById("hare").textContent);
+const part = HARE.parts[0];
+const $ = id => document.getElementById(id);
+const status = (t, cls) => { const s = $("status"); s.textContent = t; s.className = "status" + (cls ? " " + cls : ""); };
+
+// ---------- the same colouring the mod uses: keep the fur's light and dark, give it the baby's hue
+function hsv(h, s, v) { const i = Math.floor(h * 6), f = h * 6 - i, p = v * (1 - s), q = v * (1 - f * s), t = v * (1 - (1 - f) * s);
+  return [[v,t,p],[q,v,p],[p,v,t],[p,q,v],[t,p,v],[v,p,q]][((i % 6) + 6) % 6]; }
+function tintPixel(r, g, b, col) { // 0..255 in, 0..255 out
+  const lum = (0.3 * r + 0.59 * g + 0.11 * b) / 255;
+  const k = Math.min(1, lum * 1.6);
+  return [col[0] * k * 255, col[1] * k * 255, col[2] * k * 255];
+}
+
+// ---------- canvases: base texture, mask (white = fur), what the hare shows
+let W = 512, H = 512, base, mask, mctx, out, octx, baseData;
+const undo = [];
+const img = new Image();
+img.onload = () => {
+  W = img.width; H = img.height;
+  base = document.createElement("canvas"); base.width = W; base.height = H;
+  base.getContext("2d").drawImage(img, 0, 0); baseData = base.getContext("2d").getImageData(0, 0, W, H).data;
+  mask = document.createElement("canvas"); mask.width = W; mask.height = H; mctx = mask.getContext("2d", { willReadFrequently: true });
+  mctx.fillStyle = "#fff"; mctx.fillRect(0, 0, W, H);
+  out = document.createElement("canvas"); out.width = W; out.height = H; octx = out.getContext("2d");
+  build(); compose(); loadSaved();
+};
+img.src = part.tex;
+
+let view = "baby", hue = 0.58;
+function compose() {
+  const m = mctx.getImageData(0, 0, W, H).data, o = octx.createImageData(W, H), d = o.data;
+  const col = hsv(hue, 0.55, 1);
+  for (let i = 0; i < d.length; i += 4) {
+    const r = baseData[i], g = baseData[i + 1], b = baseData[i + 2], a = m[i] / 255;
+    if (view === "plain" || a === 0) { d[i] = r; d[i + 1] = g; d[i + 2] = b; }
+    else if (view === "mask") { d[i] = r * (1 - a) * 0.45 + a * 235; d[i + 1] = g * (1 - a) * 0.45 + a * 225; d[i + 2] = b * (1 - a) * 0.45 + a * 210; }
+    else { const t = tintPixel(r, g, b, col); d[i] = r + (t[0] - r) * a; d[i + 1] = g + (t[1] - g) * a; d[i + 2] = b + (t[2] - b) * a; }
+    d[i + 3] = 255;
+  }
+  octx.putImageData(o, 0, 0);
+  if (tex) tex.needsUpdate = true;
+  const c = hsv(hue, 0.55, 1); $("sw").style.background = `rgb(${c.map(x => Math.round(x * 255)).join(",")})`;
+}
+
+// ---------- 3D
+let renderer, scene, camera, controls, mesh, tex;
+function build() {
+  const stage = $("stage");
+  renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+  renderer.outputEncoding = THREE.sRGBEncoding;
+  stage.prepend(renderer.domElement);
+  scene = new THREE.Scene();
+  camera = new THREE.PerspectiveCamera(35, 1, 0.01, 50);
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x8a7a66, 1.0));
+  const sun = new THREE.DirectionalLight(0xffffff, 0.6); sun.position.set(1, 2, 1.5); scene.add(sun);
+
+  const g = new THREE.BufferGeometry();
+  const v = new Float32Array(part.v.length);
+  for (let i = 0; i < part.v.length; i += 3) { v[i] = -part.v[i]; v[i + 1] = part.v[i + 1]; v[i + 2] = part.v[i + 2]; } // Unity is left-handed
+  g.setAttribute("position", new THREE.BufferAttribute(v, 3));
+  g.setAttribute("uv", new THREE.BufferAttribute(new Float32Array(part.uv), 2));
+  const t = part.t.slice(); for (let i = 0; i < t.length; i += 3) { const x = t[i + 1]; t[i + 1] = t[i + 2]; t[i + 2] = x; }
+  g.setIndex(t); g.computeVertexNormals(); g.computeBoundingBox();
+  tex = new THREE.CanvasTexture(out); tex.encoding = THREE.sRGBEncoding;
+  mesh = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ map: tex, side: THREE.DoubleSide }));
+  scene.add(mesh);
+
+  const bb = g.boundingBox, c = bb.getCenter(new THREE.Vector3()), size = bb.getSize(new THREE.Vector3()).length();
+  controls = new THREE.OrbitControls(camera, renderer.domElement);
+  controls.target.copy(c);
+  camera.position.set(c.x + size * 0.9, c.y + size * 0.35, c.z - size * 1.1);
+  controls.mouseButtons = { LEFT: null, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.ROTATE };
+  controls.enablePan = false;
+  controls.update();
+  const resize = () => { const w = stage.clientWidth, h = stage.clientHeight; renderer.setSize(w, h, false); camera.aspect = w / Math.max(1, h); camera.updateProjectionMatrix(); };
+  new ResizeObserver(resize).observe(stage); resize();
+  (function loop() { requestAnimationFrame(loop); renderer.render(scene, camera); })();
+  hookPainting();
+}
+
+// ---------- painting
+let tool = "brush", touchTurns = false;
+const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
+function hitUV(ev) {
+  const r = renderer.domElement.getBoundingClientRect();
+  ndc.set(((ev.clientX - r.left) / r.width) * 2 - 1, -((ev.clientY - r.top) / r.height) * 2 + 1);
+  ray.setFromCamera(ndc, camera);
+  const h = ray.intersectObject(mesh)[0];
+  return h && h.uv ? { x: h.uv.x * W, y: (1 - h.uv.y) * H } : null;
+}
+function pushUndo() { undo.push(mctx.getImageData(0, 0, W, H)); if (undo.length > 25) undo.shift(); }
+let pending = false;
+function refresh() { if (pending) return; pending = true; requestAnimationFrame(() => { pending = false; compose(); }); }
+function dab(p, erase) {
+  mctx.fillStyle = erase ? "#000" : "#fff";
+  mctx.beginPath(); mctx.arc(p.x, p.y, +$("size").value / 2, 0, Math.PI * 2); mctx.fill();
+}
+function wand(p, erase) {
+  const i0 = (Math.floor(p.y) * W + Math.floor(p.x)) * 4, tol = +$("tol").value;
+  const r0 = baseData[i0], g0 = baseData[i0 + 1], b0 = baseData[i0 + 2];
+  const md = mctx.getImageData(0, 0, W, H), m = md.data;
+  for (let i = 0; i < m.length; i += 4) {
+    const dr = baseData[i] - r0, dg = baseData[i + 1] - g0, db = baseData[i + 2] - b0;
+    if (Math.sqrt(dr * dr + dg * dg + db * db) <= tol * 2) { const v = erase ? 0 : 255; m[i] = m[i + 1] = m[i + 2] = v; m[i + 3] = 255; }
+  }
+  mctx.putImageData(md, 0, 0);
+}
+function hookPainting() {
+  const el = renderer.domElement;
+  let painting = false, last = null;
+  el.addEventListener("contextmenu", e => e.preventDefault());
+  el.addEventListener("pointerdown", ev => {
+    if (ev.button !== 0) return;
+    if (ev.pointerType === "touch" && touchTurns) return;
+    const p = hitUV(ev); if (!p) return;
+    pushUndo();
+    const erase = tool === "erase" || ev.shiftKey;
+    if (tool === "wand") { wand(p, ev.shiftKey); refresh(); dirty(); return; }
+    painting = true; last = p; dab(p, erase); refresh(); dirty();
+    el.setPointerCapture(ev.pointerId);
+  });
+  el.addEventListener("pointermove", ev => {
+    if (!painting) return;
+    const p = hitUV(ev); if (!p) return;
+    const erase = tool === "erase" || ev.shiftKey;
+    // fill the gap between samples (skip jumps across a seam of the texture)
+    if (last && Math.hypot(p.x - last.x, p.y - last.y) < W * 0.08) {
+      const n = Math.ceil(Math.hypot(p.x - last.x, p.y - last.y) / 3);
+      for (let k = 1; k <= n; k++) dab({ x: last.x + (p.x - last.x) * k / n, y: last.y + (p.y - last.y) * k / n }, erase);
+    } else dab(p, erase);
+    last = p; refresh();
+  });
+  const stop = () => { painting = false; last = null; };
+  el.addEventListener("pointerup", stop); el.addEventListener("pointercancel", stop);
+  if (matchMedia("(pointer: coarse)").matches) {
+    $("touchRow").hidden = false;
+    $("hint").textContent = "Pick Touch paints or Touch turns · two fingers zoom";
+  }
+  setTouch(false);
+}
+function setTouch(turn) {
+  touchTurns = turn;
+  controls.touches = { ONE: turn ? THREE.TOUCH.ROTATE : null, TWO: THREE.TOUCH.DOLLY_ROTATE };
+  $("mPaint").setAttribute("aria-pressed", String(!turn)); $("mTurn").setAttribute("aria-pressed", String(turn));
+}
+
+// ---------- controls
+function pick(group, id) { group.forEach(b => $(b).setAttribute("aria-pressed", String(b === id))); }
+const tools = ["tBrush", "tErase", "tWand"];
+$("tBrush").onclick = () => { tool = "brush"; pick(tools, "tBrush"); };
+$("tErase").onclick = () => { tool = "erase"; pick(tools, "tErase"); };
+$("tWand").onclick = () => { tool = "wand"; pick(tools, "tWand"); };
+$("mPaint").onclick = () => setTouch(false);
+$("mTurn").onclick = () => setTouch(true);
+const views = ["vBaby", "vMask", "vPlain"];
+$("vBaby").onclick = () => { view = "baby"; pick(views, "vBaby"); compose(); };
+$("vMask").onclick = () => { view = "mask"; pick(views, "vMask"); compose(); };
+$("vPlain").onclick = () => { view = "plain"; pick(views, "vPlain"); compose(); };
+$("size").oninput = () => $("sizeV").textContent = $("size").value + " px";
+$("tol").oninput = () => $("tolV").textContent = $("tol").value;
+$("hue").oninput = () => { hue = $("hue").value / 1000; refresh(); };
+$("rnd").onclick = () => { $("hue").value = Math.floor(Math.random() * 1000); hue = $("hue").value / 1000; compose(); };
+$("undo").onclick = () => { const d = undo.pop(); if (d) { mctx.putImageData(d, 0, 0); compose(); dirty(); } };
+$("all").onclick = () => { pushUndo(); mctx.fillStyle = "#fff"; mctx.fillRect(0, 0, W, H); compose(); dirty(); };
+$("none").onclick = () => { pushUndo(); mctx.fillStyle = "#000"; mctx.fillRect(0, 0, W, H); compose(); dirty(); };
+function dirty() { status("Changed since the last save."); }
+
+// ---------- saving: a black and white PNG of the mask, kept for Claude to put into the mod
+let db = null, downloads = null;
+const MASK_DOC = "masks/hare";
+function maskPNG() { return mask.toDataURL("image/png"); }
+$("save").onclick = async () => {
+  if (!mask) return;
+  if (!db) { status("Saving needs you signed in to claude.ai. Use Download instead, if it shows.", "warn"); return; }
+  status("Saving…");
+  try {
+    await db.doc(MASK_DOC).set({ png: maskPNG(), width: W, height: H, savedAt: new Date().toISOString() });
+    status("Saved. Tell Claude it's done.", "ok");
+  } catch (e) { status("Couldn't save (" + (e && e.code || "error") + "). Try again in a moment.", "warn"); }
+};
+$("dl").onclick = async () => {
+  try {
+    const blob = await new Promise(r => mask.toBlob(r, "image/png"));
+    await downloads.save({ filename: "hare_mask.png", data: blob });
+    status("Downloaded.", "ok");
+  } catch (e) { if (!e || e.code !== "declined") status("Download didn't go through.", "warn"); }
+};
+async function loadSaved() {
+  if (!window.claude || !window.claude.use) return;
+  claude.use("downloads").then(d => { downloads = d; if (d) $("dl").hidden = false; });
+  db = await claude.use("db");
+  if (!db) return;
+  try {
+    const snap = await db.doc(MASK_DOC).get();
+    const data = snap && snap.exists ? snap.data() : null;
+    if (data && data.png) {
+      const m = new Image();
+      m.onload = () => { mctx.drawImage(m, 0, 0, W, H); compose(); status("Loaded your saved mask (" + new Date(data.savedAt).toLocaleString() + ").", "ok"); };
+      m.src = data.png;
+    }
+  } catch (e) { /* nothing saved yet */ }
+}
+</script>
