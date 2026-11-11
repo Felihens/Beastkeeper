@@ -11,7 +11,7 @@ namespace Beastkeeper
     {
         public const string GUID = "felih.Beastkeeper";
         public const string NAME = "Beastkeeper";
-        public const string VERSION = "0.1.0";
+        public const string VERSION = "0.2.0";
 
         internal static ManualLogSource Log;
         internal static Plugin Instance;
@@ -37,6 +37,9 @@ namespace Beastkeeper
         internal static ConfigEntry<string> SeatHeights, NotRideable;
         internal static ConfigEntry<float> TrapRadius, TrapHoldSeconds, RideMinHeight, RideAcceleration, RideWalkSpeed, RideSideSpeed, RideJumpForce;
         internal static ConfigEntry<float> TotemRange, TotemRadius, WanderRadius;
+        internal static ConfigEntry<bool> TamedDefend;
+        internal static ConfigEntry<float> DefendRange;
+        internal static ConfigEntry<KeyboardShortcut> CallKey;
 
         private void Awake()
         {
@@ -110,6 +113,12 @@ namespace Beastkeeper
             WanderRadius = Config.Bind("7 - Beast totem", "WanderRadius", 6f,
                 new ConfigDescription("Animals tamed with a halter graze this far around the spot where you left them (when no totem is near).", new AcceptableValueRange<float>(1f, 50f)));
 
+            TamedDefend = Config.Bind("8 - Defending", "Enabled", true,
+                "Tamed animals that can fight (wolf, boar, bear, asksvin, lox...) attack enemies that come near, even while tied, kept by a totem or on your lasso. Off: they stay calm.");
+            DefendRange = Config.Bind("8 - Defending", "Range", 15f,
+                "How close (metres) an enemy must come before a tamed animal fights it. For a tied animal, counted from the reach of its rope.");
+            CallKey = Config.Bind("10 - Favorite mount", "CallKey", new KeyboardShortcut(KeyCode.U),
+                "Looking at a tamed animal that has worn a saddle: makes it your favorite mount (press again to undo). Anywhere else: calls your favorite mount to your side, wherever it is. None = off.");
             RopeWidth = Config.Bind("4 - Rope look", "RopeWidth", 0.05f, "Thickness of the rope (metres).");
             ShakeStrength = Config.Bind("4 - Rope look", "ShakeStrength", 1f,
                 new ConfigDescription("Camera shake at key moments of a catch (multiplier, 0 = off).", new AcceptableValueRange<float>(0f, 3f)));
@@ -164,6 +173,7 @@ namespace Beastkeeper
             Leash.Update();
             Tug.Update();
             Mount.UpdatePress();
+            Favorite.Update();
             Throw.Update();
             Show.Update();
             Sea.UpdateBar();

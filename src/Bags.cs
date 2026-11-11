@@ -76,6 +76,14 @@ namespace Beastkeeper
             Plugin.Debug("[bags] opening " + c.name + "'s bags (" + ct.m_width + "x" + ct.m_height + ")");
         }
 
+        // empties the bags onto the ground (on the game that owns the animal)
+        internal static void SpillNow(Character c)
+        {
+            Container ct = Of(c);
+            if (ct == null || Empty(c) || DropAll == null) return;
+            DropAll.Invoke(ct, null);
+        }
+
         // when a pack animal dies, its bags spill on the ground (on the game that owns it)
         [HarmonyPatch(typeof(Character), "OnDeath"), HarmonyPrefix]
         private static void Spill(Character __instance)

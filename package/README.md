@@ -43,13 +43,16 @@ Any lasso holds an animal that is already tamed, whatever its tier. The **Beast 
 - **Jump** makes the animal jump. Bigger animals jump higher, and the asksvin lunges forward like a lizard.
 - **Left-click** attacks and **right-click** does a strong attack (boar, wolf, bear, asksvin).
 - **Hold E** opens the saddle bags (deer and lox).
-- **Shift + E** renames the animal. **Shift + hold E** takes the saddle off. The bags must be empty first.
+- **Shift + E** renames the animal. **Alt + E** takes the saddle off (on a controller: Shift + hold E). The bags must be empty first.
+- **U** on a tamed animal that wears (or once wore) a saddle makes it your **favorite mount** (U again undoes it). Press **U** anywhere else and it comes to your side, wherever it is in the world (on a dedicated server, Beastkeeper must be on the server too to find it far away). If it dies, it can only come back at a **Beast Totem**: look at the totem and press **U**, paying 5 food (what it eats, or food you eat), taken from your bag or chests within 30 m of the totem. It comes back tamed, with its stars and name, but without a saddle and with empty bags.
 
 **Tie.** With the lasso, press E on a tree or a building piece to tie the animal on your rope there. It grazes within a few metres. If something hits it, it slips free, then comes back. E on a tied animal unties it.
 
 **Keep them home.** Build a Beast Totem. Tamed animals that wander off come back near it.
 
 **Heal.** Feed a tamed animal any food. It heals 25–40% of its health over 10 seconds (more for better food).
+
+**Defend.** Tamed animals that can fight (wolf, boar, bear, asksvin, lox) attack enemies that come within 15 m, even while tied, kept by a totem or on your lasso. Deer, hens and hares keep away.
 
 **Breed hares.** Tamed hares have babies. Each baby gets its own fur colour for life: any hue, pale or strong, or white, grey or black. Now and then one is born with glowing fur.
 
@@ -104,13 +107,16 @@ Qualquer laço segura um animal já domado, de qualquer tier. O **Totem das Fera
 - **Pular** faz o animal pular. Animais maiores pulam mais alto, e o asksvin dá um bote para a frente como um lagarto.
 - **Botão esquerdo** ataca e **botão direito** dá um ataque forte (javali, lobo, urso, asksvin).
 - **Segurar E** abre os alforjes (cervo e lox).
-- **Shift + E** dá nome ao animal. **Shift + segurar E** tira a sela. Os alforjes precisam estar vazios.
+- **Shift + E** dá nome ao animal. **Alt + E** tira a sela (no controle: Shift + segurar E). Os alforjes precisam estar vazios.
+- **U** num animal domado que está (ou já esteve) de sela torna ele sua **montaria favorita** (U de novo desfaz). Aperte **U** em qualquer outro lugar e ela vem pro seu lado, onde quer que esteja no mundo (em servidor dedicado, o Beastkeeper precisa estar no servidor pra achar ela longe). Se ela morrer, só volta num **Totem dos Animais**: olhe pro totem e aperte **U**, pagando 5 comidas (o que ela come, ou comida sua), tiradas da mochila ou de baús a até 30 m do totem. Ela volta domada, com as estrelas e o nome, mas sem sela e com os alforjes vazios.
 
 **Amarrar.** Com o laço, aperte E numa árvore ou numa peça construída para amarrar ali o animal que está na sua corda. Ele pasta a poucos metros. Se algo bater nele, ele se solta e depois volta. E num animal amarrado desamarra.
 
 **Manter em casa.** Construa um Totem das Feras. Animais domados que se afastam voltam para perto dele.
 
 **Curar.** Dê qualquer comida a um animal domado. Ele recupera 25–40% da vida em 10 segundos (mais com comida melhor).
+
+**Defender.** Animais domados que sabem lutar (lobo, javali, urso, asksvin, lox) atacam inimigos que chegam a 15 m, mesmo amarrados, perto de um totem ou no seu laço. Cervos, galinhas e lebres ficam longe.
 
 **Criar lebres.** Lebres domadas têm filhotes. Cada filhote nasce com uma cor de pelo própria para a vida toda: qualquer cor, clara ou forte, ou branca, cinza ou preta. De vez em quando nasce um com o pelo brilhando.
 

@@ -57,6 +57,15 @@ namespace Beastkeeper
             Plugin.Debug("[tie] untied " + c.name);
         }
 
+        // untie an animal that isn't loaded (its saved data only)
+        internal static void Clear(ZDO z)
+        {
+            if (z == null || z.GetVec3(AtKey, Vector3.zero) == Vector3.zero) return;
+            z.Set(AtKey, Vector3.zero);
+            z.Set(LooseKey, 0f);
+            z.Set(PieceKey, ZDOID.None);
+        }
+
         // the lasso's E on a tied animal (untie) wins over its other E actions
         internal static bool Busy(Player p, Character c) { return IsTied(c) && Lasso.Set.Equipped(p) > 0; }
 

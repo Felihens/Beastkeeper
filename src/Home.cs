@@ -42,12 +42,85 @@ namespace Beastkeeper
         [HarmonyPatch(typeof(AnimalAI), "UpdateAI"), HarmonyPrefix, HarmonyPriority(Priority.Low)]
         private static bool AnimalUpdate(AnimalAI __instance, float dt, ref bool __result) { return Run(__instance, dt, ref __result); }
 
+        // Some animals carry the game's "event creature" or "leaves at daybreak" mark from their spawn. The game
+        // deletes those as soon as no player is within 40 m, even while the area is still loaded. Its own taming
+        // makes them tamed before that matters; a halter doesn't, so a tamed animal loses those marks here.
+        private static void KeepForever(MonsterAI mai, Character c)
+        {
+            if (mai == null || Sea.IsSeaMount(c)) return;
+            if (!mai.DespawnInDay() && !mai.IsEventCreature()) return;
+            mai.SetDespawnInDay(false);
+            mai.SetEventCreature(false);
+            Plugin.Debug("[home] " + c.name + " is tamed: it no longer leaves when players are away");
+        }
+
+        // A tied animal can't go further than its rope: if it's past the end (pushed, stuck on the way back, or
+        // just loaded there) the rope pulls it back, at once when it's far.
+        private static void Pull(Character c, Vector3 post, Vector3 d, float dist, float dt)
+        {
+            Vector3 dir = d / dist;
+            Vector3 want = post + dir * Tie.Length;
+            Vector3 pos = c.transform.position;
+            Vector3 to = dist > Tie.Length + 6f ? want : Vector3.MoveTowards(new Vector3(pos.x, 0f, pos.z), new Vector3(want.x, 0f, want.z), 6f * dt);
+            float h;
+            to.y = ZoneSystem.instance != null && ZoneSystem.instance.GetSolidHeight(to, out h) ? Mathf.Max(h, pos.y - 1f) : pos.y;
+            if (dist > Tie.Length + 6f && ZoneSystem.instance != null && ZoneSystem.instance.GetSolidHeight(to, out h)) to.y = h;
+            Rigidbody body = Leash.Body(c);
+            if (body != null)
+            {
+                Vector3 v = body.velocity;
+                float out_ = Vector3.Dot(new Vector3(v.x, 0f, v.z), dir);
+                if (out_ > 0f) body.velocity = v - dir * out_;   // no more running away from the post
+                body.position = to;
+            }
+            c.transform.position = to;
+        }
+
+        // Eating. The game's tamed animals (boar, wolf, lox...) eat food lying near them (a trough) as part of the
+        // game's own behaviour; while this mod keeps them tied or near a totem it used to skip that, so they stayed
+        // hungry and didn't breed. A hungry one now walks to food within FoodSearch (and within its rope's reach
+        // when tied) and the game takes over once it's close enough to eat.
+        private const float FoodSearch = 15f;
+        private const int EatNone = 0, EatWalk = 1, EatGame = 2;
+        private static readonly MethodInfo FindFood = AccessTools.Method(typeof(MonsterAI), "FindClosestConsumableItem");
+        private class Meal { public ItemDrop Item; public float Until; }
+        private static readonly Dictionary<Character, Meal> Meals = new Dictionary<Character, Meal>();
+
+        private static float Flat(Vector3 a, Vector3 b) { a.y = 0f; b.y = 0f; return Vector3.Distance(a, b); }
+
+        private static int GoEat(MonsterAI mai, Character c, bool tied, Vector3 post, float dt)
+        {
+            Tameable t = c.GetComponent<Tameable>();
+            if (mai == null || t == null || FindFood == null || mai.m_consumeItems == null || mai.m_consumeItems.Count == 0 || !t.IsHungry())
+            {
+                Meals.Remove(c);
+                return EatNone;
+            }
+            Meal m;
+            if (!Meals.TryGetValue(c, out m) || Time.time > m.Until || m.Item == null)
+            {
+                m = new Meal { Item = FindFood.Invoke(mai, new object[] { FoodSearch }) as ItemDrop, Until = Time.time + 2f };
+                Meals[c] = m;
+                if (Meals.Count > 200) Meals.Clear();
+            }
+            if (m.Item == null) return EatNone;
+            Vector3 food = m.Item.transform.position;
+            if (tied && Flat(food, post) > Tie.Length + 1f) return EatNone;   // out of the rope's reach
+            if (Flat(food, c.transform.position) > mai.m_consumeSearchRange - 1f)
+            {
+                Leash.MoveTo(mai, dt, food, false);
+                return EatWalk;
+            }
+            return EatGame;
+        }
+
         private static bool Run(BaseAI ai, float dt, ref bool result)
         {
             if (!Plugin.Enabled.Value) return true;
             Character c = AIChar != null ? AIChar.GetValue(ai) as Character : null;
             ZNetView nv = AIView != null ? AIView.GetValue(ai) as ZNetView : null;
             if (c == null || nv == null || !nv.IsValid() || !nv.IsOwner() || c.IsDead() || !c.IsTamed() || c.IsPlayer()) return true;
+            KeepForever(ai as MonsterAI, c);
             if (Mount.IsRidden(c) || Leash.Holder(nv) != 0L || Trap.IsHeld(c)) return true;   // someone else drives it
             bool tied = Tie.IsTied(c);
             if (tied)
@@ -57,7 +130,23 @@ namespace Beastkeeper
                 if (tied && Tie.Loose(c)) return true;   // hit: it does what it would do, and comes back after
             }
             MonsterAI mai = ai as MonsterAI;
-            if (!tied && mai != null && mai.GetFollowTarget() != null) return true;            // following its master
+            if (Defend.Active(ai, c, tied ? (Vector3?)Tie.Anchor(c) : null))
+            {
+                // an enemy near: the game's own fighting takes over (a tied one still can't go past its rope)
+                if (tied)
+                {
+                    Vector3 post = Tie.Anchor(c), td = c.transform.position - post;
+                    td.y = 0f;
+                    if (td.magnitude > Tie.Length + 0.5f) Pull(c, post, td, td.magnitude, dt);
+                }
+                return true;
+            }
+            if (!tied && mai != null && mai.GetFollowTarget() != null)                          // following its master
+            {
+                GameObject ft = mai.GetFollowTarget();
+                if (ft.GetComponent<Player>() != null) Squeeze.Check(ai, c, ft.transform, 4.5f, false);   // a door in the way
+                return true;
+            }
             if (tied && mai != null && mai.GetFollowTarget() != null) mai.SetFollowTarget(null);
 
             bool gameTame = c.GetComponent<Tameable>() != null && !tied;
@@ -75,9 +164,14 @@ namespace Beastkeeper
                 radius = Plugin.WanderRadius.Value;
             }
 
+            int eat = GoEat(mai, c, tied, home, dt);
+            if (eat == EatGame) return true;                                    // at the food: the game eats it
+            if (eat == EatWalk) { Leash.Calm(ai); result = true; return false; }   // walking to the food
+
             Vector3 d = c.transform.position - home;
             d.y = 0f;
             float dist = d.magnitude;
+            if (tied && dist > Tie.Length + 0.5f) { Pull(c, home, d, dist, dt); d = c.transform.position - home; d.y = 0f; dist = d.magnitude; }
             if (gameTame && dist <= radius) return true;   // close enough: back to the game's behaviour
 
             Leash.Calm(ai);
@@ -328,7 +422,7 @@ namespace Beastkeeper
             int n = 0;
             foreach (Character c in Character.GetAllCharacters())
                 if (c != null && !c.IsPlayer() && c.IsTamed() && Vector3.Distance(c.transform.position, transform.position) <= Plugin.TotemRange.Value) n++;
-            return "Beast Totem\n<color=#d8b080>" + n + " tamed animal" + (n == 1 ? "" : "s") + " around</color>";
+            return "Beast Totem\n<color=#d8b080>" + n + " tamed animal" + (n == 1 ? "" : "s") + " around</color>" + Favorite.TotemLine();
         }
 
         public bool Interact(Humanoid user, bool hold, bool alt) { return false; }

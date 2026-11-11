@@ -379,13 +379,19 @@ namespace Beastkeeper
             Character c = AIChar != null ? AIChar.GetValue(ai) as Character : null;
             if (c == null || c.IsDead()) return true;
 
+            if (!Tug.Is(c) && Defend.Active(ai, c, null)) return true;   // an enemy near: it fights (see Defend)
             result = true;
             Calm(ai);
             if (Tug.Is(c)) { Tug.Drive(ai, c, p, dt); return false; }
 
             float dist = Vector3.Distance(c.transform.position, p.transform.position);
-            if (dist < Plugin.RopeLength.Value) ai.StopMoving();
-            else MoveTo(ai, dt, p.transform.position, dist > Plugin.RunDistance.Value);
+            if (dist < Plugin.RopeLength.Value) { ai.StopMoving(); Squeeze.Forget(c); }
+            else
+            {
+                bool run = dist > Plugin.RunDistance.Value;
+                MoveTo(ai, dt, p.transform.position, run);
+                Squeeze.Check(ai, c, p.transform, Plugin.RopeLength.Value + 1f, run);   // a door in the way
+            }
             return false;
         }
 
@@ -403,7 +409,7 @@ namespace Beastkeeper
         private static void TameHover(Tameable __instance, ref string __result)
         {
             Character c = TameChar != null ? TameChar.GetValue(__instance) as Character : null;
-            __result = Mount.WithoutGameKeys(c, __result) + HoverLine(c) + Tie.HoverLine(c) + Mount.HoverLine(c) + TrapLine(c);
+            __result = Mount.WithoutGameKeys(c, __result) + HoverLine(c) + Tie.HoverLine(c) + Mount.HoverLine(c) + Favorite.HoverLine(c) + TrapLine(c);
         }
 
         [HarmonyPatch(typeof(Character), "GetHoverText"), HarmonyPostfix]
@@ -411,8 +417,8 @@ namespace Beastkeeper
         {
             if (__instance.GetComponent<Tameable>() != null) return;   // the line comes from Tameable
             if (Plugin.Enabled.Value && __instance.IsTamed() && Halter.Wears(__instance))
-                __result += "\n<color=#d8b080>Tamed</color> (wears a halter)";
-            __result += HoverLine(__instance) + Tie.HoverLine(__instance) + Mount.HoverLine(__instance) + TrapLine(__instance);
+                __result += "\n<color=#d8b080>Tamed</color> (wears a halter)" + Rename.HoverLine(__instance);
+            __result += HoverLine(__instance) + Tie.HoverLine(__instance) + Mount.HoverLine(__instance) + Favorite.HoverLine(__instance) + TrapLine(__instance);
         }
 
         private static string TrapLine(Character c)

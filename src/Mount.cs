@@ -58,7 +58,7 @@ namespace Beastkeeper
                         ItemDrop.ItemData.SharedData sh = p.GetComponent<ItemDrop>().m_itemData.m_shared;
                         sh.m_name = Tiers.Line[tier] + " Saddle";
                         sh.m_description = "A saddle of " + Leather[tier] + ". Fits tamed " + Lasso.Catches(tier) + " big enough to carry you: "
-                            + "look at the animal and press the saddle's hotbar key. Then E rides it. Shift + hold E takes the saddle off.";
+                            + "look at the animal and press the saddle's hotbar key. Then E rides it. Alt + E takes the saddle off (on a controller: Shift + hold E).";
                         sh.m_icons = new[] { Items.Tinted(Icon(), Recipes.Tint[tier], "Beastkeeper_SaddleIcon" + tier) };
                         sh.m_itemType = ItemDrop.ItemData.ItemType.TwoHandedWeapon;   // both hand slots, one-handed pose
                         sh.m_animationState = ItemDrop.ItemData.AnimationState.OneHanded;
@@ -1049,7 +1049,8 @@ namespace Beastkeeper
         //  E               ride
         //  hold E          open its saddle bags (pack animals: deer, lox)
         //  Shift + E       the game's usual (rename)
-        //  Shift + hold E  take the saddle off (bags must be empty)
+        //  Alt + E         take the saddle off (bags must be empty); on a controller, and on sea mounts: Shift + hold E
+        // On a keyboard Shift + E renames at once and Alt + E takes the saddle off at once, so the two never mix.
         // A press is only decided when you let go or have held it long enough, so holding never rides first.
 
         private const float HoldTime = 0.45f;
@@ -1068,6 +1069,11 @@ namespace Beastkeeper
             if (Tie.Busy(__instance, c)) return true;   // the lasso's E (untie) comes first
             if (hold) return false;                       // holding is ours, see UpdatePress
             if (__instance.IsAttached() || __instance.GetDoodadController() != null) return false;
+            if (!Sea.IsSeaMount(c) && !ZInput.IsGamepadActive())
+            {
+                if (AltKey()) { TakeSaddleOff(__instance, c); return false; }
+                if (alt) { RenameNow(__instance, c); return false; }
+            }
             if (!alt && !Bags.IsPacker(c)) { TryRide(__instance, c); return false; }   // nothing to hold for: ride now
             _pressOn = c;
             _pressAlt = alt;
@@ -1093,11 +1099,26 @@ namespace Beastkeeper
             if (down) return;
             _pressOn = null;
             if (!_pressAlt) TryRide(p, c);
-            else
-            {
-                Tameable t = c.GetComponent<Tameable>();
-                if (t != null && TameInteract != null) TameInteract.Invoke(t, new object[] { p, false, true });
-            }
+            else RenameNow(p, c);
+        }
+
+        private static bool AltKey()
+        {
+            if (Console.IsVisible() || Chat.instance != null && Chat.instance.HasFocus()) return false;
+            return Input.GetKey(KeyCode.LeftAlt) || Input.GetKey(KeyCode.RightAlt);
+        }
+
+        private static void RenameNow(Player p, Character c)
+        {
+            Tameable t = c.GetComponent<Tameable>();
+            if (t != null && TameInteract != null) TameInteract.Invoke(t, new object[] { p, false, true });
+            else if (Rename.Ours(c)) Rename.Ask(c);
+        }
+
+        // the key that takes the saddle off, as the hover text shows it
+        internal static string OffKey(Character c)
+        {
+            return Sea.IsSeaMount(c) || ZInput.IsGamepadActive() ? "Shift + hold E" : "Alt + E";
         }
 
         private static void TryRide(Player p, Character c)
@@ -1265,7 +1286,7 @@ namespace Beastkeeper
             string name = c.GetHoverName();
             ZNetView nv = Leash.View(c);
             if (nv == null || !nv.IsValid()) return;
-            if (Saddled(c)) { p.Message(MessageHud.MessageType.Center, name + " already wears a saddle (Shift + hold E takes it off)."); return; }
+            if (Saddled(c)) { p.Message(MessageHud.MessageType.Center, name + " already wears a saddle (" + OffKey(c) + " takes it off)."); return; }
             if (!Leash.Eligible(c) || c.GetComponent<Mount>() == null) { p.Message(MessageHud.MessageType.Center, "You can't saddle " + name + "."); return; }
             if (!Rideable(c)) { p.Message(MessageHud.MessageType.Center, name + " can't be ridden."); return; }
             if (!c.IsTamed()) { p.Message(MessageHud.MessageType.Center, name + " must be tamed first."); return; }
@@ -1274,6 +1295,7 @@ namespace Beastkeeper
             if (tier < need) { p.Message(MessageHud.MessageType.Center, "The " + saddle.m_shared.m_name + " doesn't fit " + name + ": you need " + Tiers.Need("Saddle", need) + "."); return; }
             if (!nv.IsOwner()) nv.ClaimOwnership();
             nv.GetZDO().Set(SaddleKey, tier);
+            Favorite.MarkSaddled(nv, tier);
             if (p.IsItemEquiped(saddle)) p.UnequipItem(saddle, false);
             p.GetInventory().RemoveItem(saddle, 1);
             Effects.Shake(0.8f);
@@ -1301,13 +1323,13 @@ namespace Beastkeeper
         {
             if (!Plugin.Enabled.Value || c == null || !Saddled(c)) return "";
             string worn = "\n<color=#d8b080>" + Tiers.Line[SaddleTier(c)] + " Saddle</color>";
-            if (!Rideable(c)) return worn + " (can't be ridden)\n[<color=yellow><b>Shift + hold E</b></color>] Take the saddle off";
+            if (!Rideable(c)) return worn + " (can't be ridden)\n[<color=yellow><b>" + OffKey(c) + "</b></color>] Take the saddle off";
             long rider = RiderOf(c);
             if (rider != 0L && Leash.FindPlayer(rider) != null) return worn + " (ridden)";
             string s = worn + "\n[<color=yellow><b>E</b></color>] Ride";
             if (Bags.IsPacker(c)) s += "\n[<color=yellow><b>Hold E</b></color>] Saddle bags";
-            if (c.GetComponent<Tameable>() != null) s += "\n[<color=yellow><b>Shift + E</b></color>] Rename";
-            return s + "\n[<color=yellow><b>Shift + hold E</b></color>] Take the saddle off";
+            if (c.GetComponent<Tameable>() != null || Rename.Ours(c)) s += "\n[<color=yellow><b>Shift + E</b></color>] Rename";
+            return s + "\n[<color=yellow><b>" + OffKey(c) + "</b></color>] Take the saddle off";
         }
 
         // a saddled animal's E rides it: the game's own "Pet" and "Rename" lines go (ours list them)
