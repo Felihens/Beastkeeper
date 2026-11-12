@@ -16,7 +16,7 @@ namespace Beastkeeper
     [HarmonyPatch]
     internal class Mount : MonoBehaviour, IDoodadController
     {
-        internal static readonly ToolSet Set = new ToolSet();
+        internal static readonly ToolSet Set = new ToolSet(Tiers.Saddles);
         internal static readonly int SaddleKey = "Beastkeeper_saddle".GetStableHashCode();
         internal static readonly int RiderKey = "Beastkeeper_rider".GetStableHashCode();
         private static readonly FieldInfo AIField = AccessTools.Field(typeof(Character), "m_baseAI");
@@ -41,11 +41,11 @@ namespace Beastkeeper
 
         internal static bool IsSaddle(ItemDrop.ItemData item) { return Set.Is(item); }
 
-        private static readonly string[] Leather = { "", "deer hide", "troll hide", "wolf hide", "lox hide and linen", "carapace plates and red jute" };
+        private static readonly string[] Leather = { "", "deer hide", "troll hide", "wolf hide", "lox hide and linen", "carapace plates and red jute", "wolf fur, silver and dragon tears" };
 
         internal static void Init()
         {
-            for (int t = 1; t <= Tiers.Max; t++)
+            for (int t = 1; t <= Tiers.Saddles; t++)
             {
                 int tier = t;
                 Set.ByTier[t] = Items.Add(new CustomItem
@@ -57,7 +57,7 @@ namespace Beastkeeper
                     {
                         ItemDrop.ItemData.SharedData sh = p.GetComponent<ItemDrop>().m_itemData.m_shared;
                         sh.m_name = Tiers.Line[tier] + " Saddle";
-                        sh.m_description = "A saddle of " + Leather[tier] + ". Fits tamed " + Lasso.Catches(tier) + " big enough to carry you: "
+                        sh.m_description = "A saddle of " + Leather[tier] + ". Fits tamed " + (tier == Tiers.Saddles ? "drakes, the only saddle they take, and any other animal" : Lasso.Catches(tier)) + " big enough to carry you: "
                             + "look at the animal and press the saddle's hotbar key. Then E rides it. Alt + E takes the saddle off (on a controller: Shift + hold E).";
                         sh.m_icons = new[] { Items.Tinted(Icon(), Recipes.Tint[tier], "Beastkeeper_SaddleIcon" + tier) };
                         sh.m_itemType = ItemDrop.ItemData.ItemType.TwoHandedWeapon;   // both hand slots, one-handed pose
@@ -109,31 +109,135 @@ namespace Beastkeeper
             if (_look3d == null && !seat) { _avgSet = false; return; }
             // The saddle and your seat are children of the animal's back bone (like the other riding mods do), so
             // the game moves them with the body. Only your seat's facing is kept level with the animal.
-            if (seat && !Sea.IsSeaMount(_c))
+            bool land = !Sea.IsSeaMount(_c);
+            if (seat && land) _seat.rotation = transform.rotation;
+            // what the rider editor posed for this walk or run: the saddle, the seat and the rider's bones, frame by frame
+            RiderMotion.Frame f = land ? Motion() : null;
+            if (_look3d != null && land) MoveSaddle(f);
+            if (seat && land) { MoveSeat(f); RiderPose(f); }
+        }
+
+        // ---------------------------------------------------------------- the saddle and rider following the walk
+
+        private Animator _anim;
+        private float _motionW;
+        private readonly RiderMotion.Frame _motion = new RiderMotion.Frame();
+        private Vector3 _seatBase, _saddleCentre;
+        private float _saddleK = 1f, _backBs = 1f;
+        private Matrix4x4 _backInv = Matrix4x4.identity;
+        private Transform _backFor;
+        private bool _seatMoved, _saddleMoved;
+        private static readonly int ForwardSpeed = Animator.StringToHash("forward_speed");
+
+        // this moment of the posed loop for this mount, or null (standing, jumping, attacking, or nothing posed for it)
+        private RiderMotion.Frame Motion()
+        {
+            if (!Plugin.RiderMotionOn.Value || _c == null) return null;
+            if (_anim == null) _anim = GetComponentInChildren<Animator>();
+            if (_anim == null) return null;
+            AnimatorStateInfo st = _anim.GetCurrentAnimatorStateInfo(0);
+            // (a landed drake: its animator spends seconds in a slow "Land" state first; its walk doesn't go by the animator anyway)
+            bool moves = st.IsName("Movement") || st.IsName("Movement_Flying") || st.IsName("Movement_Ground") || (Drake.Is(_c) && !_c.IsFlying());
+            // its speed in any direction (the animator's forward speed is zero when it goes sideways)
+            Vector3 vel = _c.GetVelocity();
+            vel.y = 0f;
+            float speed = Mathf.Max(vel.magnitude, Mathf.Abs(_anim.GetFloat(ForwardSpeed)));
+            _motionW = Mathf.MoveTowards(_motionW, moves && speed > 0.05f ? 1f : 0f, Time.deltaTime * 5f);
+            if (_motionW < 0.01f) return null;
+            // the run loop at the animal's running pace, else the walk; a drake: its flight in the air (the run loop),
+            // and on the ground its own walk, which runs by the distance it covers (DrakeWalk) and not by the animator
+            string label = speed > 0.5f * (_c.m_walkSpeed + _c.m_runSpeed) ? "run" : "walk";
+            float phase = st.normalizedTime;
+            if (Drake.Is(_c))
             {
-                _seat.rotation = transform.rotation;
-                LeanRider();
+                if (_c.IsFlying()) label = "run";
+                else
+                {
+                    label = "walk";
+                    DrakeWalk dw = _c.GetComponent<DrakeWalk>();
+                    if (dw != null) phase = dw.Phase;
+                }
             }
+            return RiderMotion.At(Kind(_c.gameObject), label, phase, _motionW, _motion) ? _motion : null;
+        }
+
+        // the back bone's rest pose, kept: where things hung on it go (the same maths as OnBack, without redoing it every frame)
+        private bool EnsureBack()
+        {
+            Transform bone = Back();
+            if (bone == null) return false;
+            if (_backFor != bone)
+            {
+                Matrix4x4 m = BackRest(bone);
+                _backInv = m.inverse;
+                _backBs = Mathf.Max(0.0001f, m.lossyScale.x);
+                _backFor = bone;
+            }
+            return true;
+        }
+
+        private void SetOnBack(Transform t, Vector3 pos, Quaternion rot, float scale)
+        {
+            if (!EnsureBack()) return;
+            t.localPosition = _backInv.MultiplyPoint3x4(pos);
+            t.localRotation = _backInv.rotation * rot;
+            t.localScale = Vector3.one * (scale / _backBs);
+        }
+
+        // the saddle: where it was put on the animal, shifted, and turned about its own middle, on the animal's axes
+        private void MoveSaddle(RiderMotion.Frame f)
+        {
+            Transform t = _look3d.transform;
+            if (f == null)
+            {
+                if (!_saddleMoved) return;
+                _saddleMoved = false;
+                SetOnBack(t, _saddleLocalPos, _saddleLocalRot, _saddleK);
+                return;
+            }
+            Quaternion r = f.SaddleTurn;
+            Vector3 c = _saddleCentre;
+            SetOnBack(t, c + r * (_saddleLocalPos - c) + f.SaddlePos, r * _saddleLocalRot, _saddleK);
+            _saddleMoved = true;
+        }
+
+        private void MoveSeat(RiderMotion.Frame f)
+        {
+            if (f == null)
+            {
+                if (_seatMoved) { _seatMoved = false; _seat.localPosition = _seatBase; }
+                return;
+            }
+            if (!EnsureBack()) return;
+            _seat.localPosition = _seatBase + _backInv.MultiplyVector(f.Seat);
+            _seatMoved = true;
         }
 
         private Transform _leanBone, _legLeft, _legRight;
         private Player _leanOwner;
+        private readonly System.Collections.Generic.Dictionary<string, Transform> _riderBones = new System.Collections.Generic.Dictionary<string, Transform>();
+        private readonly System.Collections.Generic.Dictionary<Transform, Quaternion> _turned = new System.Collections.Generic.Dictionary<Transform, Quaternion>();
 
-        // bends your back and swings your legs by this animal's numbers (after the game has posed you this frame),
-        // the same way the saddle editor page shows it
-        private void LeanRider()
+        // Bends your back and swings your legs by this animal's numbers, then turns your bones by the posed loop
+        // (after the game has posed you this frame), the same way the saddle editor page shows it.
+        private void RiderPose(RiderMotion.Frame f)
         {
             Player p = Player.m_localPlayer;
             if (p == null || Exporter.Busy) return;
             float lean = SeatNumber(3, -30f, 60f), legs = SeatNumber(5, -45f, 60f), spread = SeatNumber(6, -10f, 50f);
-            if (Mathf.Abs(lean) < 0.01f && Mathf.Abs(legs) < 0.01f && Mathf.Abs(spread) < 0.01f) return;
+            bool bends = Mathf.Abs(lean) >= 0.01f || Mathf.Abs(legs) >= 0.01f || Mathf.Abs(spread) >= 0.01f;
+            bool turns = f != null && f.Bones != null && f.Bones.Length > 0;
+            if (!bends && !turns) return;
             if (_leanOwner != p || _leanBone == null)
             {
                 _leanOwner = p;
                 _leanBone = _legLeft = _legRight = null;
+                _riderBones.Clear();
+                _turned.Clear();
                 Transform a = null, b = null;
                 foreach (Transform t in p.GetComponentsInChildren<Transform>(true))
                 {
+                    if (!_riderBones.ContainsKey(t.name)) _riderBones[t.name] = t;
                     if (t.name == "Spine" && _leanBone == null) _leanBone = t;
                     else if (t.name.EndsWith("UpLeg", System.StringComparison.OrdinalIgnoreCase)) { if (a == null) a = t; else if (b == null) b = t; }
                 }
@@ -146,24 +250,46 @@ namespace Beastkeeper
             // The player's animation doesn't run every frame (it follows the physics steps). On a frame it skipped,
             // the bones still hold last frame's bend: bending them again would stack up and make you shake.
             Vector3 right = p.transform.right, forward = p.transform.forward;
-            if (Mathf.Abs(lean) >= 0.01f && Fresh(_leanBone, _leanSet))
+            if (Fresh(_leanBone, _leanSet))
             {
-                _leanBone.rotation = Quaternion.AngleAxis(lean, right) * _leanBone.rotation;
+                if (Mathf.Abs(lean) >= 0.01f) _leanBone.rotation = Quaternion.AngleAxis(lean, right) * _leanBone.rotation;
+                TurnBone(_leanBone, f);
                 _leanSet = _leanBone.localRotation;
             }
-            if (Mathf.Abs(legs) < 0.01f && Mathf.Abs(spread) < 0.01f) return;
-            // each thigh: out to its own side, then the feet forward
             Quaternion fwd = Quaternion.AngleAxis(-legs, right);
+            bool swing = Mathf.Abs(legs) >= 0.01f || Mathf.Abs(spread) >= 0.01f;
+            // each thigh: out to its own side, then the feet forward
             if (_legLeft != null && Fresh(_legLeft, _leftSet))
             {
-                _legLeft.rotation = fwd * Quaternion.AngleAxis(-spread, forward) * _legLeft.rotation;
+                if (swing) _legLeft.rotation = fwd * Quaternion.AngleAxis(-spread, forward) * _legLeft.rotation;
+                TurnBone(_legLeft, f);
                 _leftSet = _legLeft.localRotation;
             }
             if (_legRight != null && Fresh(_legRight, _rightSet))
             {
-                _legRight.rotation = fwd * Quaternion.AngleAxis(spread, forward) * _legRight.rotation;
+                if (swing) _legRight.rotation = fwd * Quaternion.AngleAxis(spread, forward) * _legRight.rotation;
+                TurnBone(_legRight, f);
                 _rightSet = _legRight.localRotation;
             }
+            if (!turns) return;
+            // the other bones the loop turns
+            for (int i = 0; i < f.Bones.Length; i++)
+            {
+                Transform t;
+                if (!_riderBones.TryGetValue(f.Bones[i], out t) || t == _leanBone || t == _legLeft || t == _legRight) continue;
+                Quaternion last;
+                if (_turned.TryGetValue(t, out last) && Quaternion.Angle(t.localRotation, last) <= 0.01f) continue;
+                t.localRotation = t.localRotation * f.Turn[i];
+                _turned[t] = t.localRotation;
+            }
+        }
+
+        // the loop's turn for a bone by its name (the spine and thighs are handled with their bends)
+        private static void TurnBone(Transform bone, RiderMotion.Frame f)
+        {
+            if (f == null || f.Bones == null) return;
+            for (int i = 0; i < f.Bones.Length; i++)
+                if (f.Bones[i] == bone.name) { bone.localRotation = bone.localRotation * f.Turn[i]; return; }
         }
 
         private Quaternion _leanSet, _leftSet, _rightSet;
@@ -219,6 +345,8 @@ namespace Beastkeeper
         // is the same every time, whatever the animal is doing now)
         private Matrix4x4 BackRest(Transform bone)
         {
+            Matrix4x4 posed;
+            if (Drake.RestOf(_c, bone, out posed)) return posed;   // a drake: its flying pose (it's built standing up)
             List<Transform> chain = new List<Transform>();
             for (Transform u = bone; u != null && u != transform; u = u.parent) chain.Add(u);
             GameObject prefab = ZNetScene.instance != null ? ZNetScene.instance.GetPrefab(Utils.GetPrefabName(gameObject)) : null;
@@ -264,6 +392,7 @@ namespace Beastkeeper
         {
             if (Time.time < _nextLook) return;
             _nextLook = Time.time + 0.5f;
+            Drake.KeepSize(_c);
             if (_fitVersion != Plugin.FitVersion)
             {
                 // a seat or saddle setting changed: redo the saddle and your seat now
@@ -387,6 +516,10 @@ namespace Beastkeeper
             _saddleLocalPos = holder.transform.localPosition;
             _saddleLocalRot = holder.transform.localRotation;
             OnBack(hold, _saddleLocalPos, _saddleLocalRot, k);
+            _saddleCentre = pivot;   // the middle of the saddle, in the animal's frame, where it turns for the posed loop
+            _saddleK = k;
+            _saddleMoved = false;
+            _backFor = null;
             Plugin.Debug("[ride] saddle shown on " + _c.name + " from " + from + ", scale " + k.ToString("0.00"));
             return holder;
         }
@@ -618,6 +751,9 @@ namespace Beastkeeper
             _seatLocalPos = new Vector3(0f, SeatHeight(), SeatAhead());
             OnBack(_seat, _seatLocalPos, Quaternion.identity, 1f);
             _seat.rotation = transform.rotation;
+            _seatBase = _seat.localPosition;
+            _seatMoved = false;
+            _backFor = null;
         }
 
         // Put t on the trunk bone, at 'world' as it would be with the animal standing in its rest pose (from the
@@ -709,7 +845,7 @@ namespace Beastkeeper
         internal static int SaddleTier(Character c)
         {
             ZNetView nv = Leash.View(c);
-            return nv != null && nv.IsValid() ? Mathf.Clamp(nv.GetZDO().GetInt(SaddleKey, 0), 0, Tiers.Max) : 0;
+            return nv != null && nv.IsValid() ? Mathf.Clamp(nv.GetZDO().GetInt(SaddleKey, 0), 0, Tiers.Saddles) : 0;
         }
 
         internal static long RiderOf(Character c)
@@ -788,9 +924,11 @@ namespace Beastkeeper
             _autoRun = false;
             Riding = this;
             if (Sea.IsSeaMount(_c)) Sea.OnRide(_c);
+            if (Drake.Is(_c)) Drake.OnRide(_c);
+            ResetFall(p, p.transform.position.y);
             p.StartDoodadControl(this);
             p.AttachStart(_seat, _c.gameObject, true, false, false, Pose(), Vector3.up * 0.5f, null);
-            p.Message(MessageHud.MessageType.Center, "Riding " + _c.GetHoverName() + (Sea.IsSeaMount(_c) ? ". Crouch to get off." : ". E to get off."));
+            p.Message(MessageHud.MessageType.Center, "Riding " + _c.GetHoverName() + (Sea.IsSeaMount(_c) ? ". Crouch to get off." : Drake.Is(_c) ? ". Jump climbs, crouch goes down. E to get off near the ground." : ". E to get off."));
             Plugin.Debug("[ride] on " + _c.name + ", seat at " + _seat.localPosition.ToString("0.00"));
         }
 
@@ -805,6 +943,7 @@ namespace Beastkeeper
             {
                 bool sea = Sea.IsSeaMount(_c);
                 if (sea) Sea.OnGetOff(_c);
+                if (Drake.Is(_c)) Drake.OnGetOff(_c);
                 if (!sea || !Sea.PlaceOnShip(player, _c)) player.transform.position = Beside();
                 if (!sea) Land(player, player.transform.position);
                 BaseAI ai = _c.GetBaseAI();
@@ -828,8 +967,15 @@ namespace Beastkeeper
             if (p != null && !p.IsAttached() && Vector3.Distance(p.transform.position, at) > 0.3f) Place(p, at);
         }
 
+        // the height a fall is counted from restarts where you stand now (it stays at an old value while you ride)
+        private static void ResetFall(Player p, float y)
+        {
+            try { Traverse.Create(p).Field("m_maxAirAltitude").SetValue(y); } catch (System.Exception) { }
+        }
+
         private static void Place(Player p, Vector3 at)
         {
+            ResetFall(p, at.y);
             p.transform.position = at;
             Rigidbody rb = p.GetComponent<Rigidbody>();
             if (rb == null) return;
@@ -922,6 +1068,7 @@ namespace Beastkeeper
                 Sea.Burn(c, dt);
                 return true;
             }
+            if (Drake.Is(c)) { Drake.Drive(c, fwd, m._move, m._run, dt); return true; }
             // (debug) the body leaving the ground on its own while ridden
             bool onGround = c.IsOnGround();
             if (m._wasOnGround && !onGround && Time.time > m._nextHopLog)
@@ -963,7 +1110,7 @@ namespace Beastkeeper
         {
             Mount m = Riding;
             if (m == null || m._c != __instance || !Plugin.Enabled.Value || OnGroundHash == null || ZAnimField == null) return;
-            if (__instance.IsOnGround() || __instance.IsSwimming() || Sea.IsSeaMount(__instance)) return;
+            if (__instance.IsOnGround() || __instance.IsSwimming() || Sea.IsSeaMount(__instance) || Drake.Is(__instance)) return;
             ZSyncAnimation za = ZAnimField.GetValue(__instance) as ZSyncAnimation;
             if (za != null) za.SetBool((int)OnGroundHash.GetValue(null), true);
         }
@@ -1015,6 +1162,7 @@ namespace Beastkeeper
             if (m == null || !Plugin.Enabled.Value || SemanChar == null) return;
             if (SemanChar.GetValue(__instance) as Character != m._c) return;
             if (Sea.IsSeaMount(m._c)) { speed = Mathf.Abs(m._seaSpeed); return; }
+            if (Drake.Is(m._c)) return;   // a drake flies at its own speeds (Drake.Drive)
             bool running = m._run && m._speed > 0.6f;
             if (!running) speed *= Plugin.RideWalkSpeed.Value;
             speed *= DeerEdge(m._c, running);
@@ -1151,8 +1299,19 @@ namespace Beastkeeper
             if (m == null || !Plugin.Enabled.Value || __instance != Player.m_localPlayer || __instance.GetDoodadController() as Mount != m)
             { _wasCrouch = false; return; }
             bool sea = Sea.IsSeaMount(m._c);
-            if (jump) { jump = false; if (!sea) m.Hop(); }
+            bool drake = Drake.Is(m._c);
+            if (jump) { jump = false; if (!sea && !drake) m.Hop(); }   // a drake climbs while jump is held (Drake.Drive)
             if (sea) dodge = attack = secondaryAttack = false;   // none of these may throw you off into the open sea
+            else if (drake)
+            {
+                // like a bow: the right button (block) aims, the left one shoots where you aim
+                Drake.Aiming = block || blockHold || secondaryAttackHold;
+                bool a1 = attack || attackHold;
+                if (attack && !_wasAttack1) Drake.Shoot(m._c, __instance);
+                _wasAttack1 = a1;
+                _wasAttack2 = false;
+                attack = attackHold = secondaryAttack = secondaryAttackHold = block = blockHold = dodge = false;
+            }
             else
             {
                 // left button: its normal attack; right button (and the middle one): its strong attack
@@ -1290,8 +1449,10 @@ namespace Beastkeeper
             if (!Leash.Eligible(c) || c.GetComponent<Mount>() == null) { p.Message(MessageHud.MessageType.Center, "You can't saddle " + name + "."); return; }
             if (!Rideable(c)) { p.Message(MessageHud.MessageType.Center, name + " can't be ridden."); return; }
             if (!c.IsTamed()) { p.Message(MessageHud.MessageType.Center, name + " must be tamed first."); return; }
-            if (!BigEnough(c) && !Sea.IsSeaMount(c)) { p.Message(MessageHud.MessageType.Center, name + " is too small to carry you."); return; }
+            if (!BigEnough(c) && !Sea.IsSeaMount(c) && !Drake.Is(c)) { p.Message(MessageHud.MessageType.Center, name + " is too small to carry you."); return; }
             int tier = Set.TierOf(saddle), need = Tiers.Animal(c);
+            if (Drake.Is(c) && Drake.Grown(c) < 1f) { p.Message(MessageHud.MessageType.Center, name + " is still a baby: grown in about " + Drake.MinutesToGrow(c) + " min."); return; }
+            if (Drake.Is(c) && tier != Tiers.Saddles) { p.Message(MessageHud.MessageType.Center, name + " only takes a Drake Saddle."); return; }
             if (tier < need) { p.Message(MessageHud.MessageType.Center, "The " + saddle.m_shared.m_name + " doesn't fit " + name + ": you need " + Tiers.Need("Saddle", need) + "."); return; }
             if (!nv.IsOwner()) nv.ClaimOwnership();
             nv.GetZDO().Set(SaddleKey, tier);

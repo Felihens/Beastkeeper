@@ -84,6 +84,7 @@ namespace Beastkeeper
                 if (ResetTimer != null) ResetTimer.Invoke(t, null);   // fed: the game's tamed animals can breed
                 if (t.m_sootheEffect != null) t.m_sootheEffect.Create(c.GetCenterPoint(), Quaternion.identity);
             }
+            Drake.Fed(c, nv);
             if (heal > 0f) Plugin.Instance.StartCoroutine(HealSlowly(c, heal));
             Plugin.Debug("[feed] " + c.name + " hand fed, heal " + heal.ToString("0") + " over " + HealSeconds + " s");
         }

@@ -46,6 +46,7 @@ namespace Beastkeeper
                 {
                     string pose = _poses[_poseIndex];
                     Save(m, p, "Rider_" + pose, false);
+                    SaveBones(p, pose);
                     za.SetBool(pose, false);
                 }
                 catch (System.Exception e) { Plugin.Log.LogWarning("[export] rider pose: " + e); }
@@ -74,6 +75,7 @@ namespace Beastkeeper
             try
             {
                 Save(m, p, "Rider", true);
+                SaveBones(p, AttachAnim.GetValue(p) as string ?? Mount.DefaultPose);
                 _homePose = AttachAnim.GetValue(p) as string ?? Mount.DefaultPose;
                 // every sitting pose the character's animator knows
                 _poses = new List<string>();
@@ -209,7 +211,7 @@ namespace Beastkeeper
         }
 
         private static bool _modelsDone;
-        private const string EditorAnimals = "Boar,Wolf,Deer,Bjorn,Lox,Asksvin,Seal,Moose";
+        private const string EditorAnimals = "Boar,Wolf,Deer,Bjorn,Lox,Asksvin,Seal,Moose,Hatchling";
 
         internal static void Update()
         {
@@ -236,11 +238,18 @@ namespace Beastkeeper
             GameObject prefab = ZNetScene.instance.GetPrefab(name);
             if (prefab == null) { Plugin.Log.LogInfo("[export] no prefab " + name); return false; }
             // a copy that never wakes up (no scripts run while its parent is off)
-            GameObject tmp = new GameObject("Beastkeeper_ExportTmp");
-            tmp.SetActive(false);
-            GameObject g = Object.Instantiate(prefab, tmp.transform, false);
-            g.transform.localPosition = Vector3.zero;
-            g.transform.localRotation = Quaternion.identity;
+            GameObject tmp, g;
+            Character pc = prefab.GetComponent<Character>();
+            g = null; tmp = null;
+            if (pc != null && Drake.Is(pc)) { g = Drake.PosedCopy(prefab, out tmp); if (g == null) { Object.Destroy(tmp); tmp = null; } }   // a drake: in its flying pose
+            if (g == null)
+            {
+                tmp = new GameObject("Beastkeeper_ExportTmp");
+                tmp.SetActive(false);
+                g = Object.Instantiate(prefab, tmp.transform, false);
+                g.transform.localPosition = Vector3.zero;
+                g.transform.localRotation = Quaternion.identity;
+            }
             try
             {
                 foreach (MonoBehaviour mb in g.GetComponentsInChildren<MonoBehaviour>(true)) Object.DestroyImmediate(mb);
@@ -251,12 +260,22 @@ namespace Beastkeeper
                 // body measures the mod uses
                 Collider body = g.GetComponent<Collider>();
                 if (body == null) body = g.GetComponentInChildren<Collider>(true);
+                Transform bodyRoot = root;
+                if (body == null)   // a posed model copy has no body: measure the prefab's
+                {
+                    body = prefab.GetComponent<Collider>();
+                    if (body == null) body = prefab.GetComponentInChildren<Collider>(true);
+                    bodyRoot = prefab.transform;
+                }
                 float rootScale = Mathf.Max(0.01f, root.lossyScale.x);
                 sb.Append(",\"bodyWidth\":").Append(F(Mount.BodyWidth(body) / rootScale));
-                sb.Append(",\"height\":").Append(F(TopOf(body, root)));
+                sb.Append(",\"height\":").Append(F(TopOf(body, bodyRoot)));
                 Transform spine = null;
                 foreach (Transform t in g.GetComponentsInChildren<Transform>(true)) if (t.name == "Spine1") { spine = t; break; }
                 sb.Append(",\"spine\":\"").Append(spine != null ? spine.name : "").Append("\"");
+                // a tamed drake grows (11 - Drake / Size) but you don't: the editor shows you that much smaller
+                Character ch = prefab.GetComponent<Character>();
+                if (ch != null && Drake.Is(ch)) sb.Append(",\"riderScale\":").Append(F(1f / Mathf.Max(0.1f, Plugin.DrakeSize.Value)));
                 sb.Append(",\"parts\":[");
                 bool first = true;
                 foreach (SkinnedMeshRenderer sk in sks)
@@ -343,6 +362,32 @@ namespace Beastkeeper
             byte[] png = ImageConversion.EncodeToJPG(t, 85);
             Object.Destroy(t);
             return "data:image/jpeg;base64," + System.Convert.ToBase64String(png);
+        }
+
+        // every bone of the character as the game has it posed right now (local rotation and position, the game's own frame),
+        // for the rider editor: Beastkeeper_models/Rider_bones_<pose>.json
+        private static void SaveBones(Player p, string pose)
+        {
+            try
+            {
+                Animator an = p.GetComponentInChildren<Animator>();
+                if (an == null) return;
+                StringBuilder sb = new StringBuilder("{\"pose\":\"" + pose + "\",\"bones\":{");
+                bool first = true;
+                foreach (Transform t in an.transform.GetComponentsInChildren<Transform>(true))
+                {
+                    if (!first) sb.Append(","); first = false;
+                    Quaternion q = t.localRotation; Vector3 v = t.localPosition;
+                    sb.Append("\"").Append(t.name).Append("\":[").Append(F(q.x)).Append(",").Append(F(q.y)).Append(",").Append(F(q.z)).Append(",").Append(F(q.w))
+                        .Append(",").Append(F(v.x)).Append(",").Append(F(v.y)).Append(",").Append(F(v.z)).Append("]");
+                }
+                sb.Append("}}");
+                string dir = Path.Combine(BepInEx.Paths.ConfigPath, "Beastkeeper_models");
+                Directory.CreateDirectory(dir);
+                File.WriteAllText(Path.Combine(dir, "Rider_bones_" + pose + ".json"), sb.ToString());
+                Plugin.Log.LogInfo("[export] rider bones in " + pose + " saved");
+            }
+            catch (System.Exception e) { Plugin.Log.LogWarning("[export] bones: " + e.Message); }
         }
 
         private static string F(float x) { return x.ToString("0.####", Inv); }

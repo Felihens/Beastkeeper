@@ -15,13 +15,14 @@ namespace Beastkeeper
     internal static class Tiers
     {
         internal const int Max = 5;
-        internal static readonly string[] Line = { "", "Leather", "Troll", "Wolf", "Lox", "Carapace" };
+        internal const int Saddles = 6;   // saddles have one more: the Drake Saddle (after Moder), the only one a drake takes
+        internal static readonly string[] Line = { "", "Leather", "Troll", "Wolf", "Lox", "Carapace", "Drake" };
 
         private static readonly Dictionary<string, int> Species = new Dictionary<string, int>(System.StringComparer.OrdinalIgnoreCase)
         {
             { "Boar", 1 }, { "Boar_piggy", 1 }, { "Deer", 1 }, { "Hen", 1 }, { "Chicken", 1 },
             { "Bjorn", 2 },
-            { "Wolf", 3 }, { "Wolf_cub", 3 },
+            { "Wolf", 3 }, { "Wolf_cub", 3 }, { "Hatchling", 3 },
             { "Lox", 4 }, { "Lox_Calf", 4 },
             { "Hare", 5 }, { "Asksvin", 5 }, { "Asksvin_hatchling", 5 },
         };
@@ -63,13 +64,15 @@ namespace Beastkeeper
     // One tool in its five tiers.
     internal class ToolSet
     {
-        internal readonly CustomItem[] ByTier = new CustomItem[Tiers.Max + 1];
+        private readonly int _max;
+        internal readonly CustomItem[] ByTier;
+        internal ToolSet(int max = Tiers.Max) { _max = max; ByTier = new CustomItem[max + 1]; }
 
         // 0 = not one of these
         internal int TierOf(ItemDrop.ItemData item)
         {
             if (item == null) return 0;
-            for (int t = 1; t <= Tiers.Max; t++)
+            for (int t = 1; t <= _max; t++)
                 if (ByTier[t] != null && ByTier[t].Is(item)) return t;
             return 0;
         }
@@ -78,13 +81,13 @@ namespace Beastkeeper
 
         internal GameObject Prefab(int tier)
         {
-            CustomItem ci = ByTier[Mathf.Clamp(tier, 1, Tiers.Max)];
+            CustomItem ci = ByTier[Mathf.Clamp(tier, 1, _max)];
             return ci != null ? ci.Prefab : null;
         }
 
         internal bool HasPrefab(int hash)
         {
-            for (int t = 1; t <= Tiers.Max; t++)
+            for (int t = 1; t <= _max; t++)
                 if (ByTier[t] != null && ByTier[t].PrefabName.GetStableHashCode() == hash) return true;
             return false;
         }
@@ -145,6 +148,7 @@ namespace Beastkeeper
             Make("WolfPelt:6,TrollHide:4,FineWood:2", "piece_workbench", 3),
             Make("LoxPelt:4,LinenThread:6,FineWood:4", "piece_workbench", 3),
             Make("Carapace:6,JuteRed:4,YggdrasilWood:4", "blackforge", 1),
+            Make("DragonTear:3,WolfPelt:6,Silver:4,FreezeGland:4", "piece_workbench", 4),   // Drake Saddle: after Moder
         };
         internal const string Totem = "Wood:10,Dandelion:6,LeatherScraps:2";
 
@@ -157,6 +161,7 @@ namespace Beastkeeper
             new Color(0.88f, 0.88f, 0.92f),       // wolf: pale grey fur
             new Color(1f, 0.86f, 0.55f),          // lox: golden
             new Color(0.55f, 0.5f, 0.8f),         // carapace: dusky violet
+            new Color(0.62f, 0.86f, 1f),          // drake: icy blue
         };
     }
 }

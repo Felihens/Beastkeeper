@@ -9,7 +9,7 @@ namespace Beastkeeper
     internal static class Fight
     {
         private static readonly HashSet<string> Fighters = new HashSet<string>(System.StringComparer.OrdinalIgnoreCase)
-            { "Boar", "Wolf", "Bjorn", "Asksvin" };
+            { "Boar", "Wolf", "Bjorn", "Asksvin", "Hatchling" };
 
         internal static bool Fights(Character c) { return c != null && Fighters.Contains(Mount.Kind(c.gameObject)); }
 

@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.3.0
+- Drakes: after Moder, take a dragon egg from a drake nest, lay it down, give it an item that picks its element (frost, fire, poison, stone or lightning) and keep it by a fire. It hatches into a tamed baby drake that grows up and takes the new Drake Saddle. Fly it, land and walk, and attack with its element (each hits as hard; weaknesses and resistances decide). Every element has its own colours, and some drakes glow.
+- Drakes: depois da Moder, pegue um ovo de dragão de um ninho de drake, coloque no chão, dê um item que escolhe o elemento (gelo, fogo, veneno, pedra ou raio) e deixe perto de uma fogueira. Ele choca num filhote de drake domado que cresce e aceita a nova Sela de Drake. Voe, pouse e ande, e ataque com o elemento dele (todos batem igual; fraquezas e resistências decidem). Cada elemento tem suas cores, e alguns drakes brilham.
+- Tamed animals have more health and hit harder, by tier, so they hold their own in their biome.
+- Animais domados têm mais vida e batem mais forte, por tier, para aguentar o próprio bioma.
+- The saddle and the rider now move with each mount's walk and run.
+- A sela e o cavaleiro agora se movem com o passo e a corrida de cada montaria.
+- Far fewer options in the config: only the essentials are left (on/off, favorite mount key, defending, camera shake, animal lists, detailed log).
+- Bem menos opções na config: só ficou o essencial (ligar/desligar, tecla da montaria favorita, defesa, tremor da câmera, listas de animais, log detalhado).
+
 ## 0.2.0
 - Favorite mount: press U on a tamed animal that wears (or once wore) a saddle to make it your favorite. U anywhere else brings it to your side, wherever it is. If it dies, it comes back only at a Beast Totem: look at the totem and press U, paying 5 food from your bag or chests within 30 m. It returns tamed, with its stars and name, without a saddle. Option `10 - Favorite mount / CallKey`.
 - Montaria favorita: aperte U num animal domado que está (ou já esteve) de sela para torná-lo seu favorito. U em qualquer outro lugar traz ele para o seu lado, onde quer que esteja. Se morrer, só volta num Totem dos Animais: olhe para o totem e aperte U, pagando 5 comidas da mochila ou de baús a até 30 m. Ele volta domado, com as estrelas e o nome, sem sela. Opção `10 - Favorite mount / CallKey`.

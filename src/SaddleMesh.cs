@@ -131,12 +131,12 @@ namespace Beastkeeper
         private static Material _mat;
 
         // the lox saddle's own material (so it is lit like the game's things), with our leather painted on it
-        private static readonly Material[] _byTier = new Material[Tiers.Max + 1];
+        private static readonly Material[] _byTier = new Material[Tiers.Saddles + 1];
 
         // each tier's saddle: the same leather, dyed in the tier's colour
         internal static Material Material(int tier)
         {
-            tier = Mathf.Clamp(tier, 1, Tiers.Max);
+            tier = Mathf.Clamp(tier, 1, Tiers.Saddles);
             if (_byTier[tier] != null) return _byTier[tier];
             Material m = new Material(Material());
             m.name = "Beastkeeper_Saddle" + tier;

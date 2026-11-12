@@ -8,7 +8,7 @@
 
 *Freyr rode the golden boar Gullinbursti, and Thor's goats pulled his wagon across the sky. In Valheim the old gods are far away, but the beasts are still here. Bring a rope and some patience.*
 
-Catch animals with a lasso, tame them with a halter, saddle them and ride them. Tie them up, keep them near home with a totem, heal them with food, and breed hares in every colour.
+Catch animals with a lasso, tame them with a halter, saddle them and ride them. Tie them up, keep them near home with a totem, heal them with food, breed hares in every colour, and hatch drakes from Moder's eggs to fly them.
 
 ### Who installs it
 
@@ -27,6 +27,7 @@ Every tool comes in five tiers. A tool works on animals of its own tier and belo
 | 3 Wolf | wolf | Workbench 3 | Forge 2 (Silver Trap) | Workbench 3 |
 | 4 Lox | lox | Workbench 3 | Forge 3 (Black Metal Trap) | Workbench 3 |
 | 5 Carapace | hare, asksvin | Black forge | Black forge (Carapace Trap) | Black forge |
+| Drake | drake (hatched) | - | - | Workbench 4 (Drake Saddle) |
 
 Any lasso holds an animal that is already tamed, whatever its tier. The **Beast Totem** has just one version and is built with the hammer (Misc tab).
 
@@ -58,13 +59,24 @@ Any lasso holds an animal that is already tamed, whatever its tier. The **Beast 
 
 **The sea serpent.** Hit it with the Abyssal Harpoon, then throw the lasso while it's still hooked. Tame it with a halter and ride it across the sea. It needs fish to keep its speed, and you can only get off near land or a ship.
 
+**Drakes.** Wild drakes can't be caught: tamed ones hatch from **Moder's eggs**, the dragon eggs in the drake nests of the Mountains, once Moder is dead.
+- Taking an egg from a nest makes the drakes around it come for you.
+- Lay the egg on the ground and give it an item. The item decides the drake's element: **Freeze Gland** or **Crystal** = frost, **Surtling Core** = fire, **Ooze** = poison, **Obsidian** = stone, **Thunderstone** = lightning. Each element has its own colours, and some drakes are born with glowing eyes and horns.
+- Keep the egg warm by a fire. It hatches after about 5 minutes into a tamed baby drake, which grows up in about 30 minutes.
+- A grown drake takes only the **Drake Saddle** (workbench 4: dragon tears, wolf pelts, silver, freeze glands).
+- Ridden, it flies: W/A/S/D steer, hold **Jump** to climb, hold **Crouch** to go down. Flying high tires it: when its flight bar runs out it glides down and must rest. Feeding it fills the bar at once.
+- Fly down close to the ground and hold Crouch to **land**. On the ground it walks; Jump takes off again. You can only get off (E) when it's on the ground.
+- **Attack** like a bow: hold right-click to aim, left-click to shoot, flying low (up to about 4 m). Frost throws a big ice ball, stone a rock (the camera shakes where it lands), fire and poison a stream (poison hurts at once and keeps hurting), lightning a bolt that strikes where it lands. Every element hits as hard; what matters is the enemy's weakness or resistance to that kind of damage. On the ground it takes off before it attacks.
+
+**Tougher tamed animals.** A tamed animal has more health and hits harder than a wild one of its kind (more for higher tiers, more with stars), so it holds its own against the enemies of its own biome.
+
 ### Works with
 
 - **Impactful Skills:** its taming options (taming speed, hand feeding, taming bar) are turned off automatically, so they don't fight with the halter.
 
 ### Config
 
-Press F1 in game (Configuration Manager) or edit `BepInEx/config/felih.Beastkeeper.cfg`. You can change the rope lengths, how hard the tug of war is, the trap's reach, riding speed and more.
+Edit `BepInEx/config/felih.Beastkeeper.cfg` (or press F1 in game with Configuration Manager). Only a few things are there: turning the mod on or off, the favorite mount key, whether tamed animals defend you, the camera shake, the lists of animals (for creatures from other mods) and a detailed log for bug reports.
 
 ---
 
@@ -72,7 +84,7 @@ Press F1 in game (Configuration Manager) or edit `BepInEx/config/felih.Beastkeep
 
 *Freyr cavalgava o javali dourado Gullinbursti, e os bodes de Thor puxavam a carroça dele pelo céu. Em Valheim os deuses antigos estão longe, mas os bichos continuam aqui. Traga uma corda e um pouco de paciência.*
 
-Capture animais com um laço, dome com um cabresto, coloque sela e monte. Amarre, mantenha perto de casa com um totem, cure com comida e crie lebres de todas as cores.
+Capture animais com um laço, dome com um cabresto, coloque sela e monte. Amarre, mantenha perto de casa com um totem, cure com comida, crie lebres de todas as cores e choque drakes dos ovos da Moder para voar neles.
 
 ### Quem instala
 
@@ -91,6 +103,7 @@ Cada ferramenta tem cinco tiers. Uma ferramenta funciona em animais do tier dela
 | 3 Lobo | lobo | Bancada 3 | Forja 2 (armadilha de prata) | Bancada 3 |
 | 4 Lox | lox | Bancada 3 | Forja 3 (armadilha de metal negro) | Bancada 3 |
 | 5 Carapaça | lebre, asksvin | Forja negra | Forja negra (armadilha de carapaça) | Forja negra |
+| Drake | drake (chocado) | - | - | Bancada 4 (Sela de Drake) |
 
 Qualquer laço segura um animal já domado, de qualquer tier. O **Totem das Feras** tem uma versão só e é construído com o martelo (aba Misc).
 
@@ -122,13 +135,24 @@ Qualquer laço segura um animal já domado, de qualquer tier. O **Totem das Fera
 
 **A serpente marinha.** Acerte com o Arpão Abissal e jogue o laço enquanto ela ainda está fisgada. Dome com um cabresto e atravesse o mar montado nela. Ela precisa de peixe para manter a velocidade, e você só desce perto de terra ou de um barco.
 
+**Drakes.** Drakes selvagens não podem ser capturados: os domados nascem dos **ovos da Moder**, os ovos de dragão nos ninhos de drake das Montanhas, depois que a Moder morre.
+- Pegar um ovo do ninho faz os drakes em volta virem atrás de você.
+- Coloque o ovo no chão e dê um item a ele. O item decide o elemento do drake: **Glândula de Gelo** ou **Cristal** = gelo, **Núcleo de Surtling** = fogo, **Gosma** = veneno, **Obsidiana** = pedra, **Pedra-trovão** = raio. Cada elemento tem suas cores, e alguns drakes nascem com olhos e chifres brilhando.
+- Mantenha o ovo quente perto de uma fogueira. Ele choca em uns 5 minutos num filhote de drake domado, que cresce em uns 30 minutos.
+- Um drake adulto só aceita a **Sela de Drake** (bancada 4: lágrimas de dragão, peles de lobo, prata, glândulas de gelo).
+- Montado, ele voa: W/A/S/D direcionam, segure **Pular** para subir e **Agachar** para descer. Voar alto cansa: quando a barra de voo acaba ele plana até o chão e precisa descansar. Dar comida enche a barra na hora.
+- Desça perto do chão e segure Agachar para **pousar**. No chão ele anda; Pular decola de novo. Você só desce (E) com ele no chão.
+- **Ataque** como um arco: segure o botão direito para mirar e clique com o esquerdo para atirar, voando baixo (até uns 4 m). Gelo joga uma bola de gelo grande, pedra uma rocha (a câmera treme onde ela cai), fogo e veneno um jato (o veneno machuca na hora e continua machucando), raio um raio que cai onde acerta. Todo elemento bate igual; o que pesa é a fraqueza ou resistência do inimigo àquele tipo de dano. No chão ele levanta voo antes de atacar.
+
+**Animais domados mais fortes.** Um animal domado tem mais vida e bate mais forte que um selvagem da mesma espécie (mais nos tiers altos, mais com estrelas), então aguenta os inimigos do próprio bioma.
+
 ### Funciona com
 
 - **Impactful Skills:** as opções de domar dele (velocidade, alimentar na mão, barra de domar) são desligadas automaticamente para não brigar com o cabresto.
 
 ### Configuração
 
-Aperte F1 no jogo (Configuration Manager) ou edite `BepInEx/config/felih.Beastkeeper.cfg`. Dá para mudar o tamanho da corda, a dificuldade do cabo de guerra, o alcance da armadilha, a velocidade de montaria e mais.
+Edite `BepInEx/config/felih.Beastkeeper.cfg` (ou aperte F1 no jogo com o Configuration Manager). Só tem o essencial: ligar ou desligar o mod, a tecla da montaria favorita, se os animais domados defendem você, o tremor da câmera, as listas de animais (para criaturas de outros mods) e um log detalhado para relatar erros.
 
 ---
 

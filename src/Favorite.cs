@@ -117,7 +117,7 @@ namespace Beastkeeper
             int now = Mount.SaddleTier(c);
             if (now > 0) return now;
             ZDO z = Zdo(c);
-            return z != null ? Mathf.Clamp(z.GetInt(LastSaddleKey, 0), 0, Tiers.Max) : 0;
+            return z != null ? Mathf.Clamp(z.GetInt(LastSaddleKey, 0), 0, Tiers.Saddles) : 0;
         }
 
         internal static bool CanBeFavorite(Character c)

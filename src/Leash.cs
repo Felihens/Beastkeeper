@@ -68,6 +68,7 @@ namespace Beastkeeper
         internal static bool Eligible(Character c)
         {
             if (c == null || c.IsPlayer() || c.IsBoss() || c.IsDead()) return false;
+            if (Drake.Is(c)) return c.IsTamed();   // drakes come from eggs (DrakeEgg.cs): a wild one can't be caught
             string prefab = Utils.GetPrefabName(c.gameObject);
             if (InList(Plugin.NotAnimals.Value, prefab)) return false;
             if (c.GetComponent<Tameable>() != null || c.GetComponent<AnimalAI>() != null) return true;
@@ -446,13 +447,14 @@ namespace Beastkeeper
         private static void CharacterAwake(Character __instance)
         {
             if (__instance.IsPlayer()) return;
-            if (__instance.GetComponent<Tameable>() == null && __instance.GetComponent<AnimalAI>() == null && !Eligible(__instance)) return;
+            if (__instance.GetComponent<Tameable>() == null && __instance.GetComponent<AnimalAI>() == null && !Eligible(__instance) && !Drake.Is(__instance)) return;
             if (__instance.GetComponent<Rope>() == null) __instance.gameObject.AddComponent<Rope>();
             if (__instance.GetComponent<Mount>() == null) __instance.gameObject.AddComponent<Mount>();
             Trap.RegisterOn(__instance);
             Feed.RegisterOn(__instance);
             Bags.Attach(__instance);
             Breed.Attach(__instance);
+            Drake.Attach(__instance);
         }
     }
 }
