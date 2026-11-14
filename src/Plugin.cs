@@ -11,7 +11,7 @@ namespace Beastkeeper
     {
         public const string GUID = "felih.Beastkeeper";
         public const string NAME = "Beastkeeper";
-        public const string VERSION = "0.4.0";
+        public const string VERSION = "0.5.0";
 
         internal static ManualLogSource Log;
         internal static Plugin Instance;
@@ -43,10 +43,12 @@ namespace Beastkeeper
         internal static ConfigEntry<KeyboardShortcut> CallKey;
         internal static ConfigEntry<string> DrakeMounts;
         internal static ConfigEntry<float> DrakeSize, DrakeSpeed, DrakeSprintSpeed, DrakeFlightSeconds, DrakeRestSeconds, DrakeMaxAltitude;
-        internal static ConfigEntry<bool> DrakeAttackInAir, DrakeEggNeedsFire, RiderMotionOn;
+        internal static ConfigEntry<bool> DrakeAttackInAir, DrakeEggNeedsFire, RiderMotionOn, DrakeSpareParty, DrakeEarthRicochet, DrakeEarthCrater, DrakeEarthRoll;
+        internal static ConfigEntry<int> DrakeFrostShards;
+        internal static ConfigEntry<float> DrakeFrostShardAngle, DrakeEarthChargeSeconds, DrakeEarthChargeMax;
         internal static ConfigEntry<float> DrakeHatchMinutes, DrakeGrowMinutes, DrakeEggAlertRange, DrakeAttackDamage, DrakeFireMax, DrakeAttackSpeed, DrakeAttackCooldown, DrakeGlowChance;
         internal static ConfigEntry<string>[] DrakeColors;
-        internal static ConfigEntry<float> DrakeWalkSeconds, DrakeGroundSpeed, DrakeGroundSprint, DrakeFrostSize;
+        internal static ConfigEntry<float> DrakeWalkSeconds, DrakeGroundSpeed, DrakeGroundSprint, DrakeFrostSize, DrakeAttackAirCost, DrakeLightningRange;
 
         private void Awake()
         {
@@ -139,15 +141,17 @@ namespace Beastkeeper
             DrakeSpeed = Bind("11 - Drake", "FlySpeed", 9f,
                 new ConfigDescription("Flying speed of a ridden drake (metres per second).", new AcceptableValueRange<float>(2f, 30f)));
             DrakeSprintSpeed = Bind("11 - Drake", "SprintSpeed", 15f,
-                new ConfigDescription("Flying speed with the run key (metres per second). Sprinting tires it 50% faster.", new AcceptableValueRange<float>(2f, 40f)));
-            DrakeFlightSeconds = Bind("11 - Drake", "FlightSeconds", 45f,
+                new ConfigDescription("Flying speed with the run key (metres per second).", new AcceptableValueRange<float>(2f, 40f)));
+            DrakeFlightSeconds = Bind("11 - Drake", "FlightSeconds", 30f,
                 new ConfigDescription("How long a drake flies higher than 3 m before it's tired and glides down (seconds).", new AcceptableValueRange<float>(5f, 600f)));
-            DrakeRestSeconds = Bind("11 - Drake", "RestSeconds", 20f,
+            DrakeRestSeconds = Bind("11 - Drake", "RestSeconds", 5f,
                 new ConfigDescription("How long a tired drake needs near the ground to rest fully (seconds). Hand feeding rests it at once.", new AcceptableValueRange<float>(1f, 600f)));
             DrakeMaxAltitude = Bind("11 - Drake", "MaxAltitude", 35f,
                 new ConfigDescription("The highest a ridden drake flies above the ground or the sea (metres).", new AcceptableValueRange<float>(5f, 300f)));
             DrakeAttackInAir = Bind("11 - Drake", "AttackInAir", false,
                 "On: the drake attacks from any height. Off: only near the ground (up to 4 m).");
+            DrakeSpareParty = Bind("11 - Drake", "SpareParty", true,
+                "On: a ridden drake's attacks never hurt players of your Shieldmates (Warband) party. Needs the Shieldmates mod; without it nothing changes.");
             DrakeHatchMinutes = Bind("11 - Drake", "HatchMinutes", 5f,
                 new ConfigDescription("How long a woken dragon egg must be kept warm before it hatches (minutes).", new AcceptableValueRange<float>(0.2f, 600f)));
             DrakeEggNeedsFire = Bind("11 - Drake", "EggNeedsFire", true,
@@ -157,7 +161,7 @@ namespace Beastkeeper
             DrakeEggAlertRange = Bind("11 - Drake", "EggAlertRange", 60f,
                 new ConfigDescription("Taking a dragon egg makes the wild drakes this close come for you (metres; 0 = none).", new AcceptableValueRange<float>(0f, 200f)));
             DrakeFireMax = Bind("11 - Drake", "FireMaxDamage", 200f,
-                new ConfigDescription("Most a fire drake's attack hurts one target, before its resistances: lower than the others, since the burning keeps hurting after.", new AcceptableValueRange<float>(1f, 2000f)));
+                new ConfigDescription("Most burning a fire drake puts on one target (all fire damage burns over time): each attack adds at most this much, and what is still burning never goes past it.", new AcceptableValueRange<float>(1f, 2000f)));
             DrakeAttackDamage = Bind("11 - Drake", "AttackDamage", 250f,
                 new ConfigDescription("Damage of one ridden drake attack, whatever its element (each keeps its own kind: frost, fire, poison, blunt, lightning).", new AcceptableValueRange<float>(1f, 1000f)));
             DrakeAttackSpeed = Bind("11 - Drake", "AttackSpeed", 1.5f,
@@ -183,12 +187,30 @@ namespace Beastkeeper
                 new ConfigDescription("A tamed drake walks this long before it takes off and flies the rest of the way (seconds).", new AcceptableValueRange<float>(0f, 600f)));
             DrakeFrostSize = Bind("11 - Drake", "FrostSize", 2.5f,
                 new ConfigDescription("How much bigger than the game's own ice ball a frost drake's shot is.", new AcceptableValueRange<float>(0.5f, 6f)));
-            DrakeGroundSpeed = Bind("11 - Drake", "GroundSpeed", 4f,
+            DrakeGroundSpeed = Bind("11 - Drake", "GroundSpeed", 6f,
                 new ConfigDescription("How fast a drake walks under its rider after landing (metres per second).", new AcceptableValueRange<float>(1f, 15f)));
-            DrakeGroundSprint = Bind("11 - Drake", "GroundSprint", 8f,
+            DrakeGroundSprint = Bind("11 - Drake", "GroundSprint", 12f,
                 new ConfigDescription("How fast it walks with the run key, on the ground (metres per second).", new AcceptableValueRange<float>(1f, 20f)));
             DrakeGlowChance = Bind("11 - Drake", "GlowChance", 0.2f,
                 new ConfigDescription("Chance a drake hatches with eyes and horns that glow in its element's colour (0 = never, 1 = always).", new AcceptableValueRange<float>(0f, 1f)));
+            DrakeAttackAirCost = Bind("11 - Drake", "AttackCost", 5f,
+                new ConfigDescription("Seconds of flight each ridden drake attack uses from its flight bar (the same for every saddle).", new AcceptableValueRange<float>(0f, 60f)));
+            DrakeLightningRange = Bind("11 - Drake", "LightningRange", 40f,
+                new ConfigDescription("Farthest a lightning drake's attack reaches (metres).", new AcceptableValueRange<float>(5f, 250f)));
+            DrakeFrostShards = Bind("11 - Drake", "FrostShards", 6,
+                new ConfigDescription("How many ice shards a frost drake's ball breaks into when it hits (0 = none).", new AcceptableValueRange<int>(0, 12)));
+            DrakeFrostShardAngle = Bind("11 - Drake", "FrostShardAngle", 40f,
+                new ConfigDescription("Smallest angle between two flying shards (degrees). They leave in random directions, never closer than this.", new AcceptableValueRange<float>(0f, 80f)));
+            DrakeEarthChargeSeconds = Bind("11 - Drake", "EarthChargeSeconds", 1.5f,
+                new ConfigDescription("A stone drake charges its rock while you hold the left button: seconds to a full charge (0 = no charging).", new AcceptableValueRange<float>(0f, 10f)));
+            DrakeEarthChargeMax = Bind("11 - Drake", "EarthChargeMax", 1.5f,
+                new ConfigDescription("A full charge makes the rock hit this many times harder (it costs the same flight seconds as any attack).", new AcceptableValueRange<float>(1f, 5f)));
+            DrakeEarthRoll = Bind("11 - Drake", "EarthRoll", true,
+                "On: when the stone drake's rock lands on the ground it rolls on for 15 m (hitting enemies in its way), then breaks. A wall, tree or boulder breaks it at once.");
+            DrakeEarthRicochet = Bind("11 - Drake", "EarthRicochet", false,
+                "On: the stone drake's rock bounces once off a wall, tree or boulder in its way (at the angle of the surface) and breaks on the next hit.");
+            DrakeEarthCrater = Bind("11 - Drake", "EarthCrater", true,
+                "On: where the rock lands it splashes earth and dust on the ground (only a visual, it fades after 5 seconds).");
             DrakeAttackCooldown = Bind("11 - Drake", "AttackCooldown", 1.5f,
                 new ConfigDescription("Seconds between two ridden drake attacks.", new AcceptableValueRange<float>(0.2f, 10f)));
             RopeWidth = Bind("4 - Rope look", "RopeWidth", 0.05f, "Thickness of the rope (metres).");
@@ -294,7 +316,11 @@ namespace Beastkeeper
         {
             if (!Enabled.Value) return;
             Throw.OnGUI();
+            TotemWindow.OnGUI();
             Tug.OnGUI();
+            Drake.DrawCharge();
+            Drake.DrawBar();
+            Drake.DrawCooldown();
         }
 
         internal static void Debug(string msg)

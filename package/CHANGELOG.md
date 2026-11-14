@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.5.0
+- Beast Totem: press E on a totem to store your favorite mount inside it and take it out at any totem, with its saddle, stars, name and health. An animal can be the favorite of only one player.
+- Totem das Feras: aperte E num totem para guardar a sua montaria favorita dentro dele e tirar em qualquer totem, com sela, estrelas, nome e vida. Um animal só pode ser favorito de um jogador.
+- Drakes: new flight bar (one section per 5 seconds) that empties while flying; each attack costs one section; when it runs out the drake lands and flies again once the bar is full.
+- Drakes: nova barra de voo (uma seção a cada 5 segundos) que esvazia enquanto voa; cada ataque gasta uma seção; quando acaba o drake pousa e só voa de novo com a barra cheia.
+- Drake attacks: the aim is locked where you click; lightning reaches 40 m and has an aim help; frost shards fly at nearby enemies; the stone rock can be charged, rolls on the ground and breaks on structures or after 15 m; fire is a stream of 7 fireballs; the drake moves at half speed while attacking, the wind-up is quicker (same attacks per second), and an icon at the bottom right shows the cooldown.
+- Ataques do drake: a mira fica travada onde você clica; o raio alcança 40 m e tem auxílio de mira; os estilhaços de gelo voam nos inimigos por perto; a rocha de pedra pode ser carregada, rola no chão e quebra em estruturas ou depois de 15 m; o fogo é um jato de 7 bolas de fogo; o drake se move a meia velocidade enquanto ataca, a preparação é mais rápida (mesmos ataques por segundo), e um ícone no canto inferior direito mostra o cooldown.
+- Drakes on the ground are faster (full speed at once, 70% sideways). Unridden drakes fight back with their own element. Party members (Shieldmates) are not hurt by your drake.
+- Drakes no chão são mais rápidos (velocidade máxima na hora, 70% de lado). Drakes sem cavaleiro revidam com o próprio elemento. Membros da party (Shieldmates) não levam dano do seu drake.
+- Eggs: 35% of the drakes hatch with 1 star and 10% with 2; stars give more damage, speed and flight time.
+- Ovos: 35% dos drakes nascem com 1 estrela e 10% com 2; estrelas dão mais dano, velocidade e tempo de voo.
+- Fixes: the drake's collision is no longer a big block around it; the totem keeps a drake's element and glow; glowing drakes glow like the hares; tamed drakes roar less often; each drake keeps its own attack cooldown.
+- Correções: a colisão do drake não é mais um bloco grande em volta dele; o totem guarda o elemento e o brilho do drake; drakes brilhantes brilham como as lebres; drakes domados rugem menos; cada drake tem o próprio cooldown de ataque.
+
 ## 0.4.0
 - Riders are now seen on the animal by other players: before, the rider showed at the animal's feet on everyone else's game. Everyone riding together needs this version.
 - Quem monta agora aparece em cima do animal para os outros jogadores: antes o cavaleiro aparecia nos pés do animal no jogo dos outros. Todos que montam juntos precisam desta versão.

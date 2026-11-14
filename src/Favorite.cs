@@ -12,6 +12,9 @@ namespace Beastkeeper
     // at the totem and press CallKey, paying 5 food (what it eats first, else food you eat). It comes back
     // tamed, with its stars, name and halter, but without a saddle and with empty bags.
     // Copies left over from before (an older called one) go away when they show up near you (bags spill first).
+    // A Beast Totem is also a safe: press E on it for a window where you store your favorite (it vanishes from the
+    // world, its bags spill first) and take it out again at any totem, saddle and all. Only the favorite can be stored,
+    // and one animal can be the favorite of one player only (the animal remembers who).
     [HarmonyLib.HarmonyPatch]
     internal static class Favorite
     {
@@ -21,10 +24,15 @@ namespace Beastkeeper
         private static readonly int CopyGenKey = "Beastkeeper_copyGen".GetStableHashCode();
         private static readonly int CopyByKey = "Beastkeeper_copyBy".GetStableHashCode();
         private static readonly int OurNameKey = "Beastkeeper_name".GetStableHashCode();   // Rename.cs
+        private static readonly int FavOwnerKey = "Beastkeeper_favOwner".GetStableHashCode();         // the player whose favorite it is
+        private static readonly int FavOwnerNameKey = "Beastkeeper_favOwnerName".GetStableHashCode();
+        private const float StoreRange = 25f;   // how close to the totem the favorite must be to be stored
         private const float Cooldown = 3f;
 
         private static float _lastCall = -100f;
         private static float _nextSweep;
+
+        internal static readonly int HpShareKey = "Beastkeeper_hpShare".GetStableHashCode();   // health to come back with (share of its full health)
 
         private class Template
         {
@@ -35,10 +43,11 @@ namespace Beastkeeper
             public bool Halter;
             public string TamedName;   // the game's own name (animals it can tame)
             public string OurName;     // ours (halter-tamed animals)
+            public string Look = "";   // what makes it look and fight as it does: a drake's element and glow, a hare's colours
 
             public string Save()
             {
-                return string.Join("|", new[] { Id.ToString(), Prefab, Level.ToString(), Saddle.ToString(), Halter ? "1" : "0", Clean(TamedName), Clean(OurName) });
+                return string.Join("|", new[] { Id.ToString(), Prefab, Level.ToString(), Saddle.ToString(), Halter ? "1" : "0", Clean(TamedName), Clean(OurName), Clean(Look) });
             }
 
             public static Template Load(string v)
@@ -52,6 +61,7 @@ namespace Beastkeeper
                 t.Halter = s[4] == "1";
                 t.TamedName = s[5];
                 t.OurName = s[6];
+                t.Look = s.Length > 7 ? s[7] : "";
                 return t;
             }
 
@@ -148,7 +158,7 @@ namespace Beastkeeper
 
             if (Plugin.CallKey.Value.MainKey == KeyCode.None || !Plugin.CallKey.Value.IsDown()) return;
             if (Chat.instance != null && Chat.instance.HasFocus()) return;
-            if (Console.IsVisible() || TextInput.IsVisible() || Menu.IsVisible() || InventoryGui.IsVisible() || Minimap.IsOpen()) return;
+            if (Console.IsVisible() || TextInput.IsVisible() || Menu.IsVisible() || InventoryGui.IsVisible() || Minimap.IsOpen() || TotemWindow.Open) return;
             if (p.IsDead() || p.InCutscene() || p.IsTeleporting()) return;
 
             GameObject hover = p.GetHoverObject();
@@ -169,6 +179,8 @@ namespace Beastkeeper
             if (IsFavorite(c))
             {
                 p.m_customData.Remove(WorldKey("favorite"));
+                SetStored(p, false);
+                ReleaseLock(c, p);
                 p.Message(MessageHud.MessageType.Center, name + " is no longer your favorite mount.");
                 return;
             }
@@ -177,8 +189,17 @@ namespace Beastkeeper
                 p.Message(MessageHud.MessageType.Center, Mount.Rideable(c) ? "Put a saddle on " + name + " first." : name + " can't be ridden.");
                 return;
             }
+            if (Stored(p)) { p.Message(MessageHud.MessageType.Center, "Your favorite rests inside a Beast Totem: take it out first."); return; }
             ZNetView nv = Leash.View(c);
             ZDO z = nv.GetZDO();
+            // one animal, one favorite: if another player already chose it, it's taken
+            long owner = z.GetLong(FavOwnerKey, 0L);
+            if (owner != 0L && owner != p.GetPlayerID())
+            {
+                string who = z.GetString(FavOwnerNameKey, "");
+                p.Message(MessageHud.MessageType.Center, name + " is already " + (who.Length > 0 ? who + "'s" : "another player's") + " favorite mount.");
+                return;
+            }
             long id = z.GetLong(IdKey, 0L);
             if (id == 0L)
             {
@@ -187,16 +208,18 @@ namespace Beastkeeper
                 while (id == 0L) id = ((long)r.Next() << 31) ^ r.Next() ^ DateTime.UtcNow.Ticks;
                 z.Set(IdKey, id);
             }
-            Template t = new Template
+            // the animal that was your favorite before is free for others again
+            Template old = Get(p);
+            if (old != null && old.Id != id)
             {
-                Id = id,
-                Prefab = Utils.GetPrefabName(c.gameObject),
-                Level = c.GetLevel(),
-                Saddle = SaddleFor(c),
-                Halter = Halter.Wears(c),
-                TamedName = z.GetString(ZDOVars.s_tamedName, ""),
-                OurName = z.GetString(OurNameKey, ""),
-            };
+                Character oc = FindLoaded(old.Id);
+                if (oc != null) ReleaseLock(oc, p);
+                else { ZDO oz = FindZdo(old.Id); if (oz != null && oz.GetLong(FavOwnerKey, 0L) == p.GetPlayerID()) { oz.SetOwner(ZDOMan.GetSessionID()); oz.Set(FavOwnerKey, 0L); } }
+            }
+            if (!nv.IsOwner()) nv.ClaimOwnership();
+            z.Set(FavOwnerKey, p.GetPlayerID());
+            z.Set(FavOwnerNameKey, p.GetPlayerName());
+            Template t = Capture(c, id);
             p.m_customData[WorldKey("favorite")] = t.Save();
             p.Message(MessageHud.MessageType.Center, name + " is now your favorite mount. Press " + Key() + " to call it.");
             Plugin.Debug("[favorite] " + t.Save());
@@ -211,6 +234,7 @@ namespace Beastkeeper
                 return;
             }
             if (Mount.RiddenCharacter() != null || p.IsAttached()) return;
+            if (Stored(p)) { p.Message(MessageHud.MessageType.Center, t.Name() + " rests inside a Beast Totem: press E on a totem to take it out."); return; }
             if (Time.time - _lastCall < Cooldown) return;
             GameObject prefab = ZNetScene.instance != null ? ZNetScene.instance.GetPrefab(t.Prefab) : null;
             if (prefab == null || prefab.GetComponent<Character>() == null)
@@ -326,14 +350,16 @@ namespace Beastkeeper
             Player p = Player.m_localPlayer;
             Template t = Get(p);
             if (!Plugin.Enabled.Value || t == null || Plugin.CallKey.Value.MainKey == KeyCode.None) return "";
+            if (Stored(p)) return "\n[<color=yellow><b>" + Key() + "</b></color>] Take " + t.Name() + " out";
             if (!Dead(p) && (FindLoaded(t.Id) != null || FindZdo(t.Id) != null)) return "";
             return "\n[<color=yellow><b>" + Key() + "</b></color>] Bring " + t.Name() + " back (" + ReviveFood + " food)";
         }
 
-        private static void Revive(Player p, Totem totem)
+        internal static void Revive(Player p, Totem totem)
         {
             Template t = Get(p);
             if (t == null) { p.Message(MessageHud.MessageType.Center, "You have no favorite mount."); return; }
+            if (Stored(p)) { TakeOutAt(p, totem); return; }
             // found somewhere this game knows: it's alive. Not found: bring it back, even if no one told us it died
             // (the death message can miss you, e.g. when a friend's game or the server owned it at that moment).
             if (FindLoaded(t.Id) != null || FindZdo(t.Id) != null)
@@ -433,6 +459,11 @@ namespace Beastkeeper
 
         private static void Spawn(Player p, Template t, GameObject prefab, Vector3 at, Quaternion facing, long gen)
         {
+            Spawn(p, t, prefab, at, facing, gen, false);
+        }
+
+        private static void Spawn(Player p, Template t, GameObject prefab, Vector3 at, Quaternion facing, long gen, bool keepSaddle)
+        {
             GameObject go = UnityEngine.Object.Instantiate(prefab, at, facing);
             Character c = go.GetComponent<Character>();
             ZNetView nv = Leash.View(c);
@@ -444,13 +475,170 @@ namespace Beastkeeper
             z.Set(CopyOfKey, t.Id);
             z.Set(CopyGenKey, gen);
             z.Set(CopyByKey, p.GetPlayerID());
-            z.Set(LastSaddleKey, t.Saddle);   // it comes back without a saddle, but stays a favorite
+            z.Set(LastSaddleKey, t.Saddle);   // it comes back without a saddle (unless it was stored), but stays a favorite
+            if (keepSaddle && t.Saddle > 0) z.Set(Mount.SaddleKey, t.Saddle);
+            z.Set(FavOwnerKey, p.GetPlayerID());
+            z.Set(FavOwnerNameKey, p.GetPlayerName());
             if (t.Halter) z.Set(Halter.Key, 1);
             if (!string.IsNullOrEmpty(t.TamedName)) z.Set(ZDOVars.s_tamedName, t.TamedName);
             if (!string.IsNullOrEmpty(t.OurName)) z.Set(OurNameKey, t.OurName);
+            SetLook(z, t.Look);
+            if (!keepSaddle) z.Set(HpShareKey, 0f);   // brought back to life: at full health (only a stored one keeps its wounds)
             c.SetTamed(true);
             if (t.Halter) Home.Set(c, at);
             Plugin.Debug("[favorite] brought back a " + t.Prefab + " (stars " + t.Level + ") at a totem");
+        }
+
+        // ------------------------------------------------------------ the totem as a safe
+
+        private static Template Capture(Character c, long id)
+        {
+            ZDO z = Zdo(c);
+            return new Template
+            {
+                Id = id,
+                Prefab = Utils.GetPrefabName(c.gameObject),
+                Level = c.GetLevel(),
+                Saddle = SaddleFor(c),
+                Halter = Halter.Wears(c),
+                TamedName = z != null ? z.GetString(ZDOVars.s_tamedName, "") : "",
+                OurName = z != null ? z.GetString(OurNameKey, "") : "",
+                Look = LookOf(z) + ",hp=" + Mathf.Clamp(c.GetHealth() / Mathf.Max(1f, c.GetMaxHealth()), 0.01f, 1f).ToString("0.###", System.Globalization.CultureInfo.InvariantCulture),
+            };
+        }
+
+        // "e=2,g=1" (drake element, glow) / "h=0.53,s=0.6,v=1,hg=1" (hare hue, strength, lightness, glow)
+        private static string LookOf(ZDO z)
+        {
+            if (z == null) return "";
+            System.Globalization.CultureInfo inv = System.Globalization.CultureInfo.InvariantCulture;
+            System.Collections.Generic.List<string> parts = new System.Collections.Generic.List<string>();
+            int el = z.GetInt(Drake.ElementKey, 0);
+            if (el != 0) parts.Add("e=" + el);
+            if (z.GetInt(Drake.GlowKey, 0) == 1) parts.Add("g=1");
+            float hue = z.GetFloat(Breed.ColorKey, -1f);
+            if (hue >= 0f)
+            {
+                parts.Add("h=" + hue.ToString("0.####", inv));
+                parts.Add("s=" + z.GetFloat(Breed.SatKey, 0.55f).ToString("0.####", inv));
+                parts.Add("v=" + z.GetFloat(Breed.ValKey, 1f).ToString("0.####", inv));
+            }
+            if (z.GetInt(Breed.GlowKey, 0) == 1) parts.Add("hg=1");
+            return string.Join(",", parts.ToArray());
+        }
+
+        private static void SetLook(ZDO z, string look)
+        {
+            if (z == null || string.IsNullOrEmpty(look)) return;
+            System.Globalization.CultureInfo inv = System.Globalization.CultureInfo.InvariantCulture;
+            foreach (string part in look.Split(','))
+            {
+                int eq = part.IndexOf('=');
+                if (eq <= 0) continue;
+                string k = part.Substring(0, eq), v = part.Substring(eq + 1);
+                float f;
+                int n;
+                if (k == "e" && int.TryParse(v, out n)) z.Set(Drake.ElementKey, n);
+                else if (k == "g" && v == "1") z.Set(Drake.GlowKey, 1);
+                else if (k == "hp" && float.TryParse(v, System.Globalization.NumberStyles.Float, inv, out f)) z.Set(HpShareKey, f);
+                else if (k == "hg" && v == "1") z.Set(Breed.GlowKey, 1);
+                else if (k == "h" && float.TryParse(v, System.Globalization.NumberStyles.Float, inv, out f)) z.Set(Breed.ColorKey, f);
+                else if (k == "s" && float.TryParse(v, System.Globalization.NumberStyles.Float, inv, out f)) z.Set(Breed.SatKey, f);
+                else if (k == "v" && float.TryParse(v, System.Globalization.NumberStyles.Float, inv, out f)) z.Set(Breed.ValKey, f);
+            }
+        }
+
+        // the animal stops being yours alone: others may choose it (only when this player's mark is on it)
+        private static void ReleaseLock(Character c, Player p)
+        {
+            ZDO z = Zdo(c);
+            if (z == null || z.GetLong(FavOwnerKey, 0L) != p.GetPlayerID()) return;
+            ZNetView nv = Leash.View(c);
+            if (!nv.IsOwner()) nv.ClaimOwnership();
+            z.Set(FavOwnerKey, 0L);
+            z.Set(FavOwnerNameKey, "");
+        }
+
+        internal static bool Stored(Player p)
+        {
+            string v;
+            return p != null && p.m_customData.TryGetValue(WorldKey("favoriteStored"), out v) && v == "1";
+        }
+
+        private static void SetStored(Player p, bool on)
+        {
+            if (on) p.m_customData[WorldKey("favoriteStored")] = "1";
+            else p.m_customData.Remove(WorldKey("favoriteStored"));
+        }
+
+        // what the totem window shows: 0 no favorite, 1 stored, 2 here (can be stored), 3 somewhere else, 4 gone
+        internal static int WindowState(Player p, Totem totem, out string name, out string detail)
+        {
+            name = ""; detail = "";
+            Template t = Get(p);
+            if (t == null) return 0;
+            name = t.Name();
+            System.Collections.Generic.List<string> d = new System.Collections.Generic.List<string>();
+            if (t.Level > 1) d.Add((t.Level - 1) + (t.Level == 2 ? " star" : " stars"));
+            if (t.Saddle > 0) d.Add("saddled");
+            if (t.Halter) d.Add("wears a halter");
+            detail = string.Join(", ", d.ToArray());
+            if (Stored(p)) return 1;
+            Character c = FindLoaded(t.Id);
+            if (c != null && !c.IsDead() && Vector3.Distance(c.transform.position, totem.transform.position) <= StoreRange) return 2;
+            if (c != null || FindZdo(t.Id) != null) return 3;
+            return 4;
+        }
+
+        internal static int ReviveCost { get { return ReviveFood; } }
+
+        // put the favorite away: it leaves the world, its bags spill on the ground, and it waits in the totem
+        internal static void StoreAt(Player p, Totem totem)
+        {
+            Template t = Get(p);
+            if (t == null || Stored(p)) return;
+            Character c = FindLoaded(t.Id);
+            if (c == null || c.IsDead() || Vector3.Distance(c.transform.position, totem.transform.position) > StoreRange)
+            {
+                p.Message(MessageHud.MessageType.Center, t.Name() + " has to be near the totem.");
+                return;
+            }
+            long rider = Mount.RiderOf(c);
+            if (Mount.IsRidden(c) || (rider != 0L && Leash.FindPlayer(rider) != null)) { p.Message(MessageHud.MessageType.Center, "Someone is riding " + t.Name() + "."); return; }
+            ZNetView nv = Leash.View(c);
+            if (nv == null || !nv.IsValid()) return;
+            if (!nv.IsOwner()) nv.ClaimOwnership();
+            p.m_customData[WorldKey("favorite")] = Capture(c, t.Id).Save();   // stars, saddle, names as they are now
+            Bags.SpillNow(c);
+            Tie.Untie(c);
+            SetStored(p, true);
+            SetDead(p, false);
+            string name = t.Name();
+            Plugin.Debug("[favorite] stored " + name + " in a totem");
+            ZNetScene.instance.Destroy(c.gameObject);
+            Effects.Shake(0.4f);
+            p.Message(MessageHud.MessageType.Center, name + " rests inside the Beast Totem.");
+        }
+
+        // take it out at this totem, saddle and all
+        internal static void TakeOutAt(Player p, Totem totem)
+        {
+            Template t = Get(p);
+            if (t == null || !Stored(p)) return;
+            GameObject prefab = ZNetScene.instance != null ? ZNetScene.instance.GetPrefab(t.Prefab) : null;
+            if (prefab == null || prefab.GetComponent<Character>() == null)
+            {
+                p.Message(MessageHud.MessageType.Center, "Your favorite mount (" + t.Prefab + ") doesn't exist in this game.");
+                return;
+            }
+            long gen = DateTime.UtcNow.Ticks;
+            SetGen(p, gen);
+            SetStored(p, false);
+            SetDead(p, false);
+            Vector3 at = SpotNear(totem.transform.position, Flat(p.transform.position - totem.transform.position));
+            Spawn(p, t, prefab, at, Quaternion.LookRotation(Flat(p.transform.position - at)), gen, true);
+            p.Message(MessageHud.MessageType.Center, t.Name() + " comes out of the Beast Totem.");
+            Effects.Shake(0.4f);
         }
 
         // ------------------------------------------------------------ finding it

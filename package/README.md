@@ -49,7 +49,7 @@ Any lasso holds an animal that is already tamed, whatever its tier. The **Beast 
 
 **Tie.** With the lasso, press E on a tree or a building piece to tie the animal on your rope there. It grazes within a few metres. If something hits it, it slips free, then comes back. E on a tied animal unties it.
 
-**Keep them home.** Build a Beast Totem. Tamed animals that wander off come back near it.
+**Keep them home.** Build a Beast Totem. Tamed animals that wander off come back near it. Press **E** on a totem to **store** your favorite mount inside it (it must be close by) and **take it out** later at any totem, with its saddle, stars, name and health.
 
 **Heal.** Feed a tamed animal any food. It heals 25–40% of its health over 10 seconds (more for better food).
 
@@ -64,9 +64,12 @@ Any lasso holds an animal that is already tamed, whatever its tier. The **Beast 
 - Lay the egg on the ground and give it an item. The item decides the drake's element: **Freeze Gland** or **Crystal** = frost, **Surtling Core** = fire, **Ooze** = poison, **Obsidian** = stone, **Thunderstone** = lightning. Each element has its own colours, and some drakes are born with glowing eyes and horns.
 - Keep the egg warm by a fire. It hatches after about 5 minutes into a tamed baby drake, which grows up in about 30 minutes.
 - A grown drake takes only the **Drake Saddle** (workbench 4: dragon tears, wolf pelts, silver, freeze glands).
-- Ridden, it flies: W/A/S/D steer, hold **Jump** to climb, hold **Crouch** to go down. Flying high tires it: when its flight bar runs out it glides down and must rest. Feeding it fills the bar at once.
+- Ridden, it flies: W/A/S/D steer, hold **Jump** to climb, hold **Crouch** to go down. The flight bar above your stamina (one section per 5 seconds) empties while it flies, and each attack costs one section. When it runs out the drake comes down and lands, and it flies again once the bar has filled on the ground. Feeding it fills the bar at once.
 - Fly down close to the ground and hold Crouch to **land**. On the ground it walks; Jump takes off again. You can only get off (E) when it's on the ground.
 - **Attack** like a bow: hold right-click to aim, left-click to shoot, flying low (up to about 4 m). Frost throws a big ice ball, stone a rock (the camera shakes where it lands), fire and poison a stream (poison hurts at once and keeps hurting), lightning a bolt that strikes where it lands. Every element hits as hard; what matters is the enemy's weakness or resistance to that kind of damage. On the ground it takes off before it attacks.
+- Frost: the ice ball breaks into shards that fly at the enemies nearby. Stone: hold left-click to **charge** the rock (heavier, harder hit); a rock that lands on the ground **rolls**, runs through enemies and breaks on walls, trees, rocks or after 15 m. Lightning has an **aim help**: it falls on the enemy you were aiming at. The drake keeps moving at half speed while it attacks, and the icon at the bottom right shows when it can attack again.
+- On the ground it walks at full speed at once, sideways a bit slower. Unridden, it takes off and fights back with its own element.
+- Eggs: 35% of the drakes hatch with 1 star and 10% with 2. Each star means more damage, speed and flight time.
 
 **Tougher tamed animals.** A tamed animal has more health and hits harder than a wild one of its kind (more for higher tiers, more with stars), so it holds its own against the enemies of its own biome.
 
@@ -125,7 +128,7 @@ Qualquer laço segura um animal já domado, de qualquer tier. O **Totem das Fera
 
 **Amarrar.** Com o laço, aperte E numa árvore ou numa peça construída para amarrar ali o animal que está na sua corda. Ele pasta a poucos metros. Se algo bater nele, ele se solta e depois volta. E num animal amarrado desamarra.
 
-**Manter em casa.** Construa um Totem das Feras. Animais domados que se afastam voltam para perto dele.
+**Manter em casa.** Construa um Totem das Feras. Animais domados que se afastam voltam para perto dele. Aperte **E** num totem para **guardar** a sua montaria favorita dentro dele (ela precisa estar perto) e **tirar** depois em qualquer totem, com sela, estrelas, nome e vida.
 
 **Curar.** Dê qualquer comida a um animal domado. Ele recupera 25–40% da vida em 10 segundos (mais com comida melhor).
 
@@ -140,9 +143,12 @@ Qualquer laço segura um animal já domado, de qualquer tier. O **Totem das Fera
 - Coloque o ovo no chão e dê um item a ele. O item decide o elemento do drake: **Glândula de Gelo** ou **Cristal** = gelo, **Núcleo de Surtling** = fogo, **Gosma** = veneno, **Obsidiana** = pedra, **Pedra-trovão** = raio. Cada elemento tem suas cores, e alguns drakes nascem com olhos e chifres brilhando.
 - Mantenha o ovo quente perto de uma fogueira. Ele choca em uns 5 minutos num filhote de drake domado, que cresce em uns 30 minutos.
 - Um drake adulto só aceita a **Sela de Drake** (bancada 4: lágrimas de dragão, peles de lobo, prata, glândulas de gelo).
-- Montado, ele voa: W/A/S/D direcionam, segure **Pular** para subir e **Agachar** para descer. Voar alto cansa: quando a barra de voo acaba ele plana até o chão e precisa descansar. Dar comida enche a barra na hora.
+- Montado, ele voa: W/A/S/D direcionam, segure **Pular** para subir e **Agachar** para descer. A barra de voo acima da stamina (uma seção a cada 5 segundos) esvazia enquanto ele voa, e cada ataque gasta uma seção. Quando acaba, o drake desce e pousa, e só voa de novo depois que a barra enche no chão. Dar comida enche a barra na hora.
 - Desça perto do chão e segure Agachar para **pousar**. No chão ele anda; Pular decola de novo. Você só desce (E) com ele no chão.
 - **Ataque** como um arco: segure o botão direito para mirar e clique com o esquerdo para atirar, voando baixo (até uns 4 m). Gelo joga uma bola de gelo grande, pedra uma rocha (a câmera treme onde ela cai), fogo e veneno um jato (o veneno machuca na hora e continua machucando), raio um raio que cai onde acerta. Todo elemento bate igual; o que pesa é a fraqueza ou resistência do inimigo àquele tipo de dano. No chão ele levanta voo antes de atacar.
+- Gelo: a bola de gelo se quebra em estilhaços que voam nos inimigos por perto. Pedra: segure o botão esquerdo para **carregar** a rocha (mais pesada, bate mais forte); a rocha que cai no chão **rola**, passa pelos inimigos e quebra em paredes, árvores, rochas ou depois de 15 m. O raio tem **auxílio de mira**: cai no inimigo que você estava mirando. O drake continua se movendo a meia velocidade enquanto ataca, e o ícone no canto inferior direito mostra quando pode atacar de novo.
+- No chão ele anda na velocidade máxima desde o primeiro passo, de lado um pouco mais devagar. Sem ninguém montado, ele levanta voo e revida com o próprio elemento.
+- Ovos: 35% dos drakes nascem com 1 estrela e 10% com 2. Cada estrela dá mais dano, velocidade e tempo de voo.
 
 **Animais domados mais fortes.** Um animal domado tem mais vida e bate mais forte que um selvagem da mesma espécie (mais nos tiers altos, mais com estrelas), então aguenta os inimigos do próprio bioma.
 

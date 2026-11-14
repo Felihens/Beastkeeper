@@ -1325,7 +1325,7 @@ namespace Beastkeeper
                 // like a bow: the right button (block) aims, the left one shoots where you aim
                 Drake.Aiming = block || blockHold || secondaryAttackHold;
                 bool a1 = attack || attackHold;
-                if (attack && !_wasAttack1) Drake.Shoot(m._c, __instance);
+                Drake.Trigger(m._c, __instance, a1, _wasAttack1);
                 _wasAttack1 = a1;
                 _wasAttack2 = false;
                 attack = attackHold = secondaryAttack = secondaryAttackHold = block = blockHold = dodge = false;

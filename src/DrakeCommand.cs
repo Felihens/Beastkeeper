@@ -11,7 +11,26 @@ namespace Beastkeeper
         [HarmonyPatch(typeof(Terminal), "InitTerminal"), HarmonyPostfix]
         private static void Add()
         {
+            new Terminal.ConsoleCommand("bk_element", "[frost|fire|poison|earth|lightning] [glow|noglow] - changes the drake you are riding (Beastkeeper)", new Terminal.ConsoleEvent(Change), true);
             new Terminal.ConsoleCommand("bk_drake", "[frost|fire|poison|earth|lightning] [glow] - a tamed grown drake (Beastkeeper)", new Terminal.ConsoleEvent(Run), true);
+        }
+
+        private static int Element(string want)
+        {
+            return want == "fire" ? Drake.Fire : want == "poison" ? Drake.Poison : want == "earth" || want == "stone" ? Drake.Earth
+                : want == "lightning" ? Drake.Lightning : Drake.Frost;
+        }
+
+        private static void Change(Terminal.ConsoleEventArgs args)
+        {
+            Character c = Mount.RiddenCharacter();
+            ZNetView nv = c != null && Drake.Is(c) ? Leash.View(c) : null;
+            if (nv == null || !nv.IsValid()) { args.Context.AddString("Ride the drake first."); return; }
+            if (!nv.IsOwner()) nv.ClaimOwnership();
+            int el = Element(args.Length > 1 ? args[1].ToLowerInvariant() : "frost");
+            nv.GetZDO().Set(Drake.ElementKey, el);
+            if (args.Length > 2) nv.GetZDO().Set(Drake.GlowKey, args[2].ToLowerInvariant() == "glow" ? 1 : 0);
+            args.Context.AddString("It is a " + Drake.ElementName(el) + " drake now. (A glow shows after getting off and on, or a moment later.)");
         }
 
         private static void Run(Terminal.ConsoleEventArgs args)

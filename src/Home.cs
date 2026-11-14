@@ -422,10 +422,16 @@ namespace Beastkeeper
             int n = 0;
             foreach (Character c in Character.GetAllCharacters())
                 if (c != null && !c.IsPlayer() && c.IsTamed() && Vector3.Distance(c.transform.position, transform.position) <= Plugin.TotemRange.Value) n++;
-            return "Beast Totem\n<color=#d8b080>" + n + " tamed animal" + (n == 1 ? "" : "s") + " around</color>" + Favorite.TotemLine();
+            return "Beast Totem\n<color=#d8b080>" + n + " tamed animal" + (n == 1 ? "" : "s") + " around</color>\n[<color=yellow><b>E</b></color>] Open" + Favorite.TotemLine();
         }
 
-        public bool Interact(Humanoid user, bool hold, bool alt) { return false; }
+        // E opens the totem window (store your favorite, take it out)
+        public bool Interact(Humanoid user, bool hold, bool alt)
+        {
+            if (hold || user != Player.m_localPlayer || !Plugin.Enabled.Value) return false;
+            TotemWindow.Show(this);
+            return true;
+        }
 
         public bool UseItem(Humanoid user, ItemDrop.ItemData item) { return false; }
     }

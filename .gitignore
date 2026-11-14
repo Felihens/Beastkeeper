@@ -5,3 +5,5 @@ backup/
 frozen/
 editor/*.html
 !editor/*.template.html
+editor/collision/
+backup_*.cs

@@ -52,6 +52,10 @@ namespace Beastkeeper
             z.Set(BornKey, Breed.Now());
             if (Random.value < Plugin.DrakeGlowChance.Value) z.Set(GlowKey, 1);
             z.Set(Halter.Key, 1);
+            // 10% hatch with 2 stars, 35% with 1 star (fixed: not a setting)
+            float roll = Random.value;
+            int level = roll < 0.10f ? 3 : roll < 0.45f ? 2 : 1;
+            if (level > 1) baby.SetLevel(level);
             baby.SetTamed(true);
             Home.Set(baby, home);
             KeepSize(baby);
@@ -176,6 +180,29 @@ namespace Beastkeeper
             return t;
         }
 
+        // the light of a glowing part: the glow colour at full brightness, keeping the light and dark of the part's own skin
+        internal static Texture2D GlowFor(Color glow, Texture source)
+        {
+            if (source == null || !Mask()) return null;
+            string key = "glow_" + source.GetInstanceID() + "_" + ((Mathf.RoundToInt(glow.r * 15f) * 16 + Mathf.RoundToInt(glow.g * 15f)) * 16 + Mathf.RoundToInt(glow.b * 15f));
+            Texture2D t;
+            if (Made.TryGetValue(key, out t) && t != null) return t;
+            Color32[] bp = Copy(source);
+            Color32[] px = new Color32[bp.Length];
+            for (int i = 0; i < px.Length; i++)
+            {
+                Color32 b = bp[i];
+                float k = Mathf.Clamp01(0.35f + (0.3f * b.r + 0.59f * b.g + 0.11f * b.b) / 255f * 1.3f);
+                px[i] = new Color32((byte)(glow.r * k * 255f), (byte)(glow.g * k * 255f), (byte)(glow.b * k * 255f), 255);
+            }
+            t = new Texture2D(_w, _h, TextureFormat.RGBA32, true);
+            t.name = "Beastkeeper_DrakeGlow_" + key;
+            t.SetPixels32(px);
+            t.Apply(true, true);
+            Made[key] = t;
+            return t;
+        }
+
         // game textures can't be read: copy it on the GPU, at the mask's size
         private static Color32[] Copy(Texture source)
         {
@@ -271,6 +298,14 @@ namespace Beastkeeper
                 _c.Land();
                 Plugin.Debug("[drake] led on a lasso: landed");
             }
+            // attacked, or an enemy close by: it takes to the air and fights back (its spit only works on the wing),
+            // and doesn't land again while the threat is there
+            if (!led && _ai != null && Defend.Active(_ai, _c, null))
+            {
+                _still = 0f;
+                if (!_c.IsFlying() && !_c.InAttack() && Time.time - _lastLand > 1f) { _c.TakeOff(); Plugin.Debug("[drake] " + _c.name + " takes off to fight"); }
+                return;
+            }
             if (!_set && _ai != null)
             {
                 _set = true;
@@ -326,6 +361,7 @@ namespace Beastkeeper
             bool recolour = _version != Drake.PaletteVersion;
             if (el != _el || recolour) { _el = el; _version = Drake.PaletteVersion; Paint(el); if (_glowSet) SetGlow(el); }
             if (!_glowSet && el >= Drake.Frost && _nv.GetZDO().GetInt(Drake.GlowKey, 0) == 1) { _glowSet = true; Glow(el); }
+            if (_c != null && _c.IsTamed()) Drake.Shape(_c);
         }
 
         private void LateUpdate()
@@ -359,8 +395,6 @@ namespace Beastkeeper
                     _own.Add(m);
                     if (!m.HasProperty("_EmissionColor")) { Plugin.Debug("[drake] shader " + m.shader.name + " has no glow: light only"); continue; }
                     m.EnableKeyword("_EMISSION");
-                    // the game's shader glows through an emission map: a white one makes the whole part shine
-                    if (m.HasProperty("_EmissionMap")) m.SetTexture("_EmissionMap", Texture2D.whiteTexture);
                     m.globalIlluminationFlags = MaterialGlobalIlluminationFlags.RealtimeEmissive;
                     (part == DrakePart.Eyes ? _eyeGlow : _hornGlow).Add(m);
                 }
@@ -385,9 +419,23 @@ namespace Beastkeeper
         private void SetGlow(int el)
         {
             Color glow = Drake.PaletteOf(el).Glow;
-            foreach (Material m in _eyeGlow) if (m != null) m.SetColor("_EmissionColor", glow * 2.2f);
-            foreach (Material m in _hornGlow) if (m != null) m.SetColor("_EmissionColor", glow * 0.9f);
+            foreach (Material m in _eyeGlow) Shine(m, glow, 2.4f);
+            foreach (Material m in _hornGlow) Shine(m, glow, 2f);
             if (_light != null) _light.color = glow;
+        }
+
+        // the same way the glowing hares shine: a glow picture in the glow colour (keeping the part's own detail),
+        // lit at twice white. Without the picture, the plain colour.
+        private static void Shine(Material m, Color glow, float strength)
+        {
+            if (m == null) return;
+            Texture2D map = DrakeSkin.GlowFor(glow, m.mainTexture);
+            if (map != null && m.HasProperty("_EmissionMap")) { m.SetTexture("_EmissionMap", map); m.SetColor("_EmissionColor", Color.white * strength); }
+            else
+            {
+                if (m.HasProperty("_EmissionMap")) m.SetTexture("_EmissionMap", Texture2D.whiteTexture);
+                m.SetColor("_EmissionColor", glow * (strength * 0.5f));
+            }
         }
 
         // something this mod hung on the drake (saddle, bags, seat), not part of its body

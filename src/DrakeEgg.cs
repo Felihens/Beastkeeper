@@ -207,7 +207,7 @@ namespace Beastkeeper
                 if (p != null && Vector3.Distance(p.transform.position, at) < 30f)
                     p.Message(MessageHud.MessageType.Center, "A " + Drake.ElementName(el).ToLowerInvariant() + " drake hatched!"
                         + (nv.GetZDO().GetInt(Drake.GlowKey, 0) == 1 ? " Its eyes and horns glow!" : ""));
-                Plugin.Debug("[egg] hatched a " + Drake.ElementName(el) + " drake at " + at);
+                Plugin.Debug("[egg] hatched a " + Drake.ElementName(el) + " drake at " + at + " (see its stars on it)");
                 _nv.Destroy();
             }
         }

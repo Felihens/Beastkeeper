@@ -32,6 +32,17 @@ namespace Beastkeeper
         private static bool _strikeLooked;
         private static float _nextShot;
         internal static bool Aiming;
+        private static Vector3 _aimAt;            // where the camera pointed when you clicked: the attack goes there
+        private const float IdleShare = 0.25f;     // a tamed drake gives its idle roar a quarter as often
+
+        // tamed drakes roar far less often (the game plays an idle sound every few seconds, half of the time)
+        [HarmonyPatch(typeof(BaseAI), "DoIdleSound"), HarmonyPrefix]
+        private static bool QuietRoar(BaseAI __instance)
+        {
+            Character c = Fast.AIChar(__instance);
+            if (c == null || !c.IsTamed() || !Is(c)) return true;
+            return Random.value < IdleShare;
+        }
 
         // the attack in progress
         private static Character _pending;       // waiting for the animation's moment to shoot
@@ -42,7 +53,10 @@ namespace Beastkeeper
         private static float _burstNext, _burstEnd;
         private static Animator _slowed;
         private static float _slowedSpeed;
-        private const float BurstSlow = 0.5f, BurstSeconds = 1.6f, BurstEvery = 0.16f;
+        private const float BurstSlow = 0.5f;
+        // fire: 1 + 6 fireballs over 1.5 s (one every 0.25 s); poison: 1 + 10 over 1.6 s
+        private static float BurstSeconds(int el) { return el == Fire ? 1.5f : 1.6f; }
+        private static float BurstEvery(int el) { return el == Fire ? 0.25f : 0.16f; }
 
         private static bool IsStream(int el) { return el == Fire || el == Poison; }
 
@@ -191,6 +205,9 @@ namespace Beastkeeper
             if (!MayAttack(c)) { Say("Too high to attack: fly lower."); return; }
             int el = ElementOf(c);
             if (ShotOf(el) == null) { Say("Your drake has no attack."); return; }
+            if (!CanSpend(AttackCost())) { Say("Your drake is too tired to attack: let it rest near the ground."); return; }
+            // the target is fixed at the click (not when the animation lets go of the shot a moment later)
+            if (_queuedC == null) { _aimAt = AimPoint(c, rider); _aimFoe = el == Lightning ? AimFoe(c, _aimAt) : null; }
             if (_queuedC == null && !c.IsFlying())
             {
                 if (!TakeOffToAttack(c)) { Say("Your drake is too tired to fly up and attack."); return; }
@@ -198,6 +215,9 @@ namespace Beastkeeper
                 return;
             }
 
+            Spend(AttackCost());
+            _chargeUsed = _shotCharge;
+            _shotCharge = 0f;
             Humanoid h = c as Humanoid;
             ItemDrop.ItemData move = h != null ? OwnMove(h) : null;
             _launched = false;
@@ -211,8 +231,12 @@ namespace Beastkeeper
                 if (h.GetCurrentWeapon() != move) h.EquipItem(move, false);
                 _pending = c;
                 _pendingRider = rider;
+                // it keeps moving while it attacks, at half its speed (the game would stop it)
+                move.m_shared.m_attack.m_speedFactor = MoveShare;
+                move.m_shared.m_attack.m_speedFactorRotation = 1f;
                 if (h.StartAttack(null, false))
                 {
+                    Hurry(c, true);
                     Plugin.Debug("[drake] attack animation " + move.m_shared.m_name + " (" + move.m_shared.m_attack.m_attackAnimation + ")");
                     return;
                 }
@@ -237,11 +261,15 @@ namespace Beastkeeper
         }
 
         // the game's own moment for the shot (the attack's animation event): shoot ours instead
+        private static readonly System.Reflection.FieldInfo AttackOwner = AccessTools.Field(typeof(Attack), "m_character");
+
         [HarmonyPatch(typeof(Attack), "ProjectileAttackTriggered"), HarmonyPrefix]
         private static bool AtTheMoment(Attack __instance)
         {
+            Humanoid ch = AttackOwner != null ? AttackOwner.GetValue(__instance) as Humanoid : null;
+            // a tamed drake fighting on its own: its own element instead of the ice spit (DrakeDefend.cs)
+            if (ch != null && ch != _pending && ch.IsTamed() && ch != Mount.RiddenCharacter() && Is(ch)) return !Defend(ch, __instance);
             if (_pending == null || _launched) return true;
-            Humanoid ch = Traverse.Create(__instance).Field("m_character").GetValue<Humanoid>();
             if (ch != _pending) return true;
             Launch(ch, _pendingRider);
             return false;
@@ -254,6 +282,9 @@ namespace Beastkeeper
 
         internal static void Tick()
         {
+            Character ridden = Mount.RiddenCharacter();
+            if (ridden != null && !Is(ridden)) ridden = null;
+            if (ridden != _timerOf) SwitchDrake(ridden);
             if (_queuedC != null && Time.time >= _queuedAt)
             {
                 Character qc = _queuedC;
@@ -266,7 +297,9 @@ namespace Beastkeeper
             if (c == null || c.IsDead() || Mount.RiddenCharacter() != c)
             {
                 Slow(null, false);
+                Hurry(null, false);
                 _pending = null; _burstLeft = 0;
+                _nextShot = Time.time + Mathf.Max(0.2f, Plugin.DrakeAttackCooldown.Value);   // cut short: the wait starts now
                 return;
             }
             int el = ElementOf(c);
@@ -274,7 +307,7 @@ namespace Beastkeeper
             if (!_launched && Time.time - _startedAt > 1.4f) Launch(c, rider);
             if (_burstLeft > 0 && Time.time >= _burstNext)
             {
-                _burstNext = Time.time + BurstEvery;
+                _burstNext = Time.time + BurstEvery(el);
                 _burstLeft--;
                 Spawn(c, rider, ShotOf(el), false);
             }
@@ -285,8 +318,9 @@ namespace Beastkeeper
                 Slow(null, false);
                 _pending = null;
                 // a stream's wait starts with the stream, so fire and poison attack as often as the single shots
-                float from = IsStream(el) ? _burstEnd - BurstSeconds : Time.time;
-                _nextShot = Mathf.Max(Time.time, from + Mathf.Max(0.2f, Plugin.DrakeAttackCooldown.Value));
+                float from = IsStream(el) ? _burstEnd - BurstSeconds(el) : Time.time;
+                _nextShot = Mathf.Max(Time.time, from + Mathf.Max(0.2f, Plugin.DrakeAttackCooldown.Value)) + _saved;
+                _saved = 0f;
             }
         }
 
@@ -312,26 +346,65 @@ namespace Beastkeeper
         // one attack hurts each target by at most the same amount, before the target's weakness or resistance:
         // twice AttackDamage. So every element is as strong, and only the kind of damage makes a difference.
         private static readonly Dictionary<Character, float> _dealt = new Dictionary<Character, float>();
-        private static float _attackUntil;
+        private static float _attackUntil, _starMult = 1f;
 
         private static void NewAttack(int el)
         {
             _dealt.Clear();
-            _attackUntil = Time.time + (IsStream(el) ? BurstSeconds : 0f) + 5f;
+            _starMult = DamageOf(Mount.RiddenCharacter());
+            _attackMult = el == Earth ? 1f + _chargeUsed * (Plugin.DrakeEarthChargeMax.Value - 1f) : el == Frost && Plugin.DrakeFrostShards.Value > 0 ? 1.2f : 1f;   // frost: ball + shards go past the usual limit
+            _attackUntil = Time.time + (IsStream(el) ? BurstSeconds(el) : 0f) + 5f;
+        }
+
+        // ---- party members are spared (Shieldmates / Warband, optional: found by name, so nothing breaks without it)
+        private static System.Reflection.MethodInfo _isAlly;
+        private static bool _allyLooked;
+
+        private static bool IsAlly(Character c)
+        {
+            Player p = c as Player;
+            if (p == null || p == Player.m_localPlayer) return false;
+            if (!_allyLooked)
+            {
+                _allyLooked = true;
+                try
+                {
+                    foreach (System.Reflection.Assembly a in System.AppDomain.CurrentDomain.GetAssemblies())
+                    {
+                        System.Type t = a.GetType("Warband.Party", false);
+                        if (t != null) { _isAlly = t.GetMethod("IsAlly", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public); break; }
+                    }
+                }
+                catch (System.Exception) { _isAlly = null; }
+            }
+            if (_isAlly == null) return false;
+            try { return (bool)_isAlly.Invoke(null, new object[] { p.GetZDOID().UserID }); }
+            catch (System.Exception) { return false; }
         }
 
         [HarmonyPatch(typeof(Character), "Damage"), HarmonyPrefix, HarmonyPriority(Priority.Low)]
         private static bool Budget(Character __instance, HitData hit)
         {
-            if (hit == null || __instance == null || Time.time > _attackUntil) return true;
+            if (hit == null || __instance == null) return true;
+            if (Plugin.DrakeSpareParty.Value && __instance is Player)
+            {
+                Character att = hit.GetAttacker();
+                if (att != null && att == Mount.RiddenCharacter() && Is(att) && IsAlly(__instance)) return false;
+            }
+            // a drake fighting on its own: only its burning is held (BurnCap), at its own stars
+            Character own = hit.GetAttacker();
+            if (own != null && own != Mount.RiddenCharacter() && own.IsTamed() && Is(own)) { _drakeHitFrame = Time.frameCount; _burnMult = DamageOf(own); return true; }
+            if (Time.time > _attackUntil) return true;
             Character drake = Mount.RiddenCharacter();
             if (drake == null || hit.GetAttacker() != drake || !Is(drake)) return true;
+            _drakeHitFrame = Time.frameCount;   // the burning this hit starts is capped just below
+            _burnMult = _starMult;
             float total = hit.GetTotalDamage();
             if (total <= 0f) return true;
             float done;
             _dealt.TryGetValue(__instance, out done);
-            float cap = Plugin.DrakeAttackDamage.Value * 2f;
-            if (ElementOf(drake) == Fire) cap = Mathf.Min(cap, Plugin.DrakeFireMax.Value);   // its burning keeps hurting after: less up front
+            float cap = Plugin.DrakeAttackDamage.Value * 2f * _attackMult * _starMult;
+            if (ElementOf(drake) == Fire) cap = Mathf.Min(cap, Plugin.DrakeFireMax.Value * _starMult);   // its burning keeps hurting after: less up front
             float left = cap - done;
             if (left <= 0.01f) return false;   // this attack has done its part on this target
             if (total > left) hit.m_damage.Modify(left / total);
@@ -339,8 +412,62 @@ namespace Beastkeeper
             return true;
         }
 
+        // ------------------------------------------------------------ burning doesn't pile up
+        // The game adds every new fire hit to what is still burning on the target (and spreads it over the same time),
+        // so a few attacks in a row would burn for ever more. Poison doesn't stack (a bigger hit only replaces it).
+        // Here what a drake has set on fire never holds more than FireMaxDamage, whatever the number of attacks.
+        private static int _drakeHitFrame = -1;
+        private static float _burnMult = 1f;
+        private static readonly System.Reflection.FieldInfo BurnLeft = AccessTools.Field(typeof(SE_Burning), "m_fireDamageLeft");
+        private static readonly System.Reflection.FieldInfo BurnPerHit = AccessTools.Field(typeof(SE_Burning), "m_fireDamagePerHit");
+
+        [HarmonyPatch(typeof(Character), "AddFireDamage"), HarmonyPostfix]
+        private static void BurnCap(Character __instance)
+        {
+            if (Time.frameCount != _drakeHitFrame || BurnLeft == null || BurnPerHit == null) return;
+            SEMan se = __instance.GetSEMan();
+            SE_Burning b = se != null ? se.GetStatusEffect(SEMan.s_statusEffectBurning) as SE_Burning : null;
+            if (b == null) return;
+            float cap = Plugin.DrakeFireMax.Value * _burnMult;
+            float left = (float)BurnLeft.GetValue(b);
+            if (left <= cap) return;
+            int ticks = Mathf.Max(1, (int)(b.m_ttl / b.m_damageInterval));
+            BurnLeft.SetValue(b, cap);
+            BurnPerHit.SetValue(b, cap / ticks);
+            Plugin.Debug("[drake] burning on " + __instance.name + " held at " + cap.ToString("0") + " (was " + left.ToString("0") + ")");
+        }
+
+        // The wind-up of the attack plays faster (the shot leaves sooner after the click), and the time saved is added
+        // to the wait after it: the drake attacks exactly as often as before.
+        private const float HurryBy = 1.7f, MoveShare = 0.5f;
+        private static Animator _hurried;
+        private static float _hurriedSpeed, _saved;
+
+        private static void Hurry(Character c, bool on)
+        {
+            if (!on)
+            {
+                if (_hurried != null) _hurried.speed = _hurriedSpeed;
+                _hurried = null;
+                return;
+            }
+            _saved = 0f;
+            Animator an = c != null ? c.GetComponentInChildren<Animator>() : null;
+            if (an == null) return;
+            _hurried = an;
+            _hurriedSpeed = an.speed;
+            an.speed = _hurriedSpeed * HurryBy;
+        }
+
+        [HarmonyPatch(typeof(Character), "CanMove"), HarmonyPostfix]
+        private static void MovesWhileAttacking(Character __instance, ref bool __result)
+        {
+            if (!__result && _pending != null && __instance == _pending && !__instance.IsStaggering()) __result = true;
+        }
+
         private static void Launch(Character c, Player rider)
         {
+            if (_hurried != null) { _saved = (Time.time - _startedAt) * (HurryBy - 1f); Hurry(null, false); }
             _launched = true;
             NewAttack(ElementOf(c));
             int el = ElementOf(c);
@@ -349,9 +476,9 @@ namespace Beastkeeper
             Spawn(c, rider, s, true);
             if (IsStream(el))
             {
-                _burstLeft = Mathf.RoundToInt(BurstSeconds / BurstEvery);
-                _burstNext = Time.time + BurstEvery;
-                _burstEnd = Time.time + BurstSeconds;
+                _burstLeft = Mathf.RoundToInt(BurstSeconds(el) / BurstEvery(el));
+                _burstNext = Time.time + BurstEvery(el);
+                _burstEnd = Time.time + BurstSeconds(el);
             }
         }
 
@@ -360,17 +487,31 @@ namespace Beastkeeper
             if (s == null || c == null) return;
             int el = ElementOf(c);
             Vector3 from = c.GetHeadPoint();
-            Vector3 target = AimPoint(c, rider);
+            Vector3 target = _aimAt;
+            if (target == Vector3.zero) target = AimPoint(c, rider);
+            // lightning only reaches so far: past that it falls on the ground at the edge of its reach
+            float reach = Plugin.DrakeLightningRange.Value;
+            // lightning finds the enemy you had in your sights when you clicked, wherever it has moved to since
+            Character foe = el == Lightning && _aimFoe != null && !_aimFoe.IsDead() ? _aimFoe : null;
+            if (foe != null) target = foe.GetCenterPoint();
+            if (el == Lightning && Vector3.Distance(from, target) > reach)
+            {
+                target = from + (target - from).normalized * reach;
+                if (ZoneSystem.instance != null) target.y = Mathf.Max(ZoneSystem.instance.GetGroundHeight(target), ZoneSystem.instance.m_waterLevel);
+            }
             Vector3 dir = (target - from).normalized;
             Attack a = s.Attack;
+            // the rock is heavy: it falls as it flies, so it leaves a bit higher to still land where you aimed
+            if (el == Earth && !s.AtTarget) dir = Lob(from, target, ShotSpeed(a, el), EarthGravity(s));
             Quaternion look = Quaternion.LookRotation(dir);
             float scale = Mathf.Max(1f, c.transform.localScale.x);
             Vector3 mouth = from + dir * 1.2f * scale;
 
             HitData.DamageTypes dmg = new HitData.DamageTypes();
-            float amount = Plugin.DrakeAttackDamage.Value;
-            if (IsStream(el)) amount /= Mathf.Max(1f, BurstSeconds / BurstEvery) / 2f;   // many small hits, about twice one shot in all
-            else if (el == Frost || el == Earth) amount *= 2f;   // one big hit worth the same: the stream's total, or lightning's shot plus strike
+            float amount = Plugin.DrakeAttackDamage.Value * DamageOf(c);
+            if (IsStream(el)) amount /= Mathf.Max(1f, BurstSeconds(el) / BurstEvery(el)) / 2f;   // many small hits, about twice one shot in all
+            else if (el == Earth) amount *= 2f * _attackMult;   // one big hit worth the same: the stream's total (a charged rock hits harder)
+            else if (el == Frost) amount *= (Shards(s) ? 1.6f : 2f);   // with shards: the ball hits for 80% of an attack, the shards add 40% more
             switch (el)
             {
                 case Fire: dmg.m_fire = amount; break;
@@ -398,7 +539,7 @@ namespace Beastkeeper
 
             int count = s.AtTarget ? 1 : Mathf.Clamp(a.m_projectiles, 1, 12);
             if (IsStream(el) || el == Frost || el == Earth) count = 1;   // one ball with all the damage, not a spray that mostly misses
-            float speed = Mathf.Max(20f, a.m_projectileVel) * Mathf.Max(0.5f, Plugin.DrakeAttackSpeed.Value);
+            float speed = ShotSpeed(a, el);
             float spread = IsStream(el) ? 4f : count > 1 ? Mathf.Min(6f, a.m_projectileAccuracy) : 0f;
             if (count > 1) { DamageTypes_Scale(ref hd, 1f / count); }
             for (int i = 0; i < count; i++)
@@ -409,14 +550,17 @@ namespace Beastkeeper
                 IProjectile pr = go.GetComponent<IProjectile>();
                 if (pr == null) { Object.Destroy(go); continue; }
                 NoSpawns(go);
-                if (el == Earth && go.GetComponent<Projectile>() != null) _rocks.Add(go.GetComponent<Projectile>());
                 pr.Setup(c, s.AtTarget ? Vector3.zero : d * speed, a.m_attackHitNoise, hd, s.Item, null);
+                Projectile fly = go.GetComponent<Projectile>();
+                if (el == Earth && fly != null) Rock(fly, go);
+                if (el == Frost && fly != null && Shards(s)) _ice[fly] = new Ice { Owner = c, Shot = s, Hit = hd, Speed = speed };
+                if (el == Lightning && fly != null && !s.AtTarget) fly.m_ttl = Mathf.Min(fly.m_ttl, reach / Mathf.Max(1f, speed));
                 if (el == Frost && !s.AtTarget) go.transform.localScale *= Mathf.Max(0.5f, Plugin.DrakeFrostSize.Value);   // a bigger ice ball
             }
 
             // the lightning also strikes where it lands, with the same effect as the game's own lightning (Eikthyr's):
             // the lightning area (hits everything there) and, if that has no flash of its own, the flash
-            if (el == Lightning && first) Strike(c, target, a, s);
+            if (el == Lightning && first) Strike(c, foe != null && Vector3.Distance(from, foe.transform.position) <= reach ? foe.transform.position : target, a, s);
             if (first) Plugin.Debug("[drake] " + ElementName(el) + " shot from " + s.From + ": " + s.Prefab.name + (s.AtTarget ? " at the target" : " at " + speed.ToString("0") + " m/s"));
         }
 
@@ -431,17 +575,7 @@ namespace Beastkeeper
         }
 
         // the stone drake's rocks: the camera shakes a little where one lands (more when it lands close)
-        private static readonly HashSet<Projectile> _rocks = new HashSet<Projectile>();
-
-        [HarmonyPatch(typeof(Projectile), "OnHit"), HarmonyPostfix]
-        private static void RockHit(Projectile __instance, Vector3 hitPoint)
-        {
-            if (!_rocks.Remove(__instance)) return;
-            _rocks.RemoveWhere(r => r == null);
-            Transform cam = GameCamera.instance != null ? GameCamera.instance.transform : null;
-            float far = cam != null ? Vector3.Distance(cam.position, hitPoint) : 0f;
-            Effects.Shake(Mathf.Lerp(0.5f, 0.15f, Mathf.InverseLerp(5f, 60f, far)));
-        }
+        // (the rock's own landing, with its crater and bounce, and the ice ball's shards are in DrakeSplash.cs)
 
         // a borrowed projectile may make creatures or items where it lands (the blob bomb spawns blobs): never
         private static void NoSpawns(GameObject go)
@@ -461,6 +595,36 @@ namespace Beastkeeper
         private static void DamageTypes_Scale(ref HitData hd, float k)
         {
             hd.m_damage.Modify(k);
+        }
+
+        // Aim help for the lightning: the enemy you were aiming at. The one closest to the line of sight wins, if it is
+        // within AimHelpDegrees of it (or within AimHelpNear metres of the point you aimed at) and in reach.
+        private static Character _aimFoe;
+        private const float AimHelpDegrees = 7f, AimHelpNear = 4f;
+
+        private static Character AimFoe(Character c, Vector3 aim)
+        {
+            Transform cam = GameCamera.instance != null ? GameCamera.instance.transform : null;
+            if (cam == null) return null;
+            float reach = Plugin.DrakeLightningRange.Value + 5f;
+            Character best = null;
+            float bestScore = float.MaxValue;
+            foreach (Character ch in Character.GetAllCharacters())
+            {
+                if (ch == null || ch == c || ch.IsDead() || ch.IsPlayer() || ch.IsTamed()) continue;
+                Vector3 p = ch.GetCenterPoint();
+                if (Vector3.Distance(p, c.transform.position) > reach) continue;
+                Vector3 to = p - cam.position;
+                if (Vector3.Dot(to, cam.forward) <= 0f) continue;
+                float ang = Vector3.Angle(cam.forward, to);
+                float near = Vector3.Distance(p, aim);
+                if (ang > AimHelpDegrees && near > AimHelpNear) continue;
+                if (!BaseAI.IsEnemy(c, ch)) continue;
+                float score = Mathf.Min(ang, near * 2f);
+                if (score < bestScore) { bestScore = score; best = ch; }
+            }
+            if (best != null) Plugin.Debug("[drake] lightning aimed at " + best.name);
+            return best;
         }
 
         // where the camera's centre points (past the drake and its rider)
@@ -520,7 +684,7 @@ namespace Beastkeeper
                 IProjectile pr = go.GetComponent<IProjectile>();
                 HitData sh = new HitData();
                 sh.m_damage = new HitData.DamageTypes();
-                sh.m_damage.m_lightning = Plugin.DrakeAttackDamage.Value;
+                sh.m_damage.m_lightning = Plugin.DrakeAttackDamage.Value * DamageOf(c);
                 sh.m_ranged = true;   // not the tamed-animal multiplier
                 // the boss's lightning hits again and again while it lasts, and chains to more strikes: here it hits once
                 Aoe aoe = go.GetComponent<Aoe>();

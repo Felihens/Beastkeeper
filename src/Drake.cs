@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Reflection;
 using HarmonyLib;
 using UnityEngine;
@@ -28,6 +29,8 @@ namespace Beastkeeper
         private static float _slow = -1f, _fast = -1f;
         private static bool _onFoot;                   // landed under its rider: it walks where you steer, and takes off when you jump
         private static float _jog0 = -1f, _run0 = -1f; // its own walking speeds, put back when you get off
+        private static float _acc0 = -1f;              // its own acceleration: on foot under a rider it is at full speed at once
+        private const float FootAccel = 100f;
         private const float LandAt = 1.2f;             // how close to the ground "down" lands it, in metres
         private static Character _speedOf;
         private static float _nextSave;
@@ -41,7 +44,15 @@ namespace Beastkeeper
             return false;
         }
 
-        private static float Max { get { return Mathf.Max(1f, Plugin.DrakeFlightSeconds.Value); } }
+        private static int _stars;   // of the drake being ridden (0, 1 or 2)
+        private static float Max { get { return Mathf.Max(1f, Plugin.DrakeFlightSeconds.Value) + StarFlight * _stars; } }
+
+        // A starred drake (hatched with 1 or 2 stars) is better at everything: +25% attack damage, +10% speed and
+        // one more 5 s section of flight for each star. Its health follows the game's own rule for starred creatures.
+        internal const float StarDamage = 0.25f, StarSpeed = 0.1f, StarFlight = 5f;
+        internal static int Stars(Character c) { return c != null ? Mathf.Clamp(c.GetLevel() - 1, 0, 2) : 0; }
+        internal static float DamageOf(Character c) { return 1f + StarDamage * Stars(c); }
+        private static float SpeedOf(Character c) { return 1f + StarSpeed * Stars(c); }
 
         // ------------------------------------------------------------ size
 
@@ -51,6 +62,29 @@ namespace Beastkeeper
             if (!Is(c)) return;
             float want = c.IsTamed() && Plugin.Enabled.Value ? Plugin.DrakeSize.Value * Mathf.Lerp(BabyShare, 1f, Grown(c)) : 1f;
             if (Mathf.Abs(c.transform.localScale.x - want) > 0.001f) c.transform.localScale = Vector3.one * want;
+            if (c.IsTamed()) Shape(c);   // its collision (DrakeCollision.cs)
+            // a tamed drake doesn't roar each time it spots something
+            BaseAI ai = c.IsTamed() ? c.GetBaseAI() : null;
+            if (ai != null && ai.m_alertedEffects != null && ai.m_alertedEffects.m_effectPrefabs != null && ai.m_alertedEffects.m_effectPrefabs.Length > 0)
+                ai.m_alertedEffects = new EffectList();
+        }
+
+        // A tamed drake's body is a little smaller than the game's capsule around it (made for the flying pose):
+        // narrower and lower, with its foot kept where it was, so it stands as close to things as it looks.
+        private static readonly HashSet<int> _slimmed = new HashSet<int>();
+        private const float SlimRadius = 0.72f, SlimHeight = 0.85f;
+
+        private static void Slim(Character c)
+        {
+            CapsuleCollider cap = c.GetCollider();
+            if (cap == null || !_slimmed.Add(cap.GetInstanceID())) return;
+            float foot = cap.center.y - cap.height / 2f;
+            cap.radius *= SlimRadius;
+            cap.height = Mathf.Max(cap.height * SlimHeight, cap.radius * 2f);
+            Vector3 ce = cap.center;
+            ce.y = foot + cap.height / 2f;
+            cap.center = ce;
+            if (_slimmed.Count > 400) _slimmed.Clear();
         }
 
         // ------------------------------------------------------------ getting on and off
@@ -59,6 +93,7 @@ namespace Beastkeeper
         {
             KeepSafe(1f);
             KeepSize(c);
+            _stars = Stars(c);
             ZNetView nv = Leash.View(c);
             _air = Max;
             if (nv != null && nv.IsValid())
@@ -75,6 +110,7 @@ namespace Beastkeeper
             _fast = c.m_flyFastSpeed;
             _jog0 = c.m_speed;
             _run0 = c.m_runSpeed;
+            _acc0 = c.m_acceleration;
             _onFoot = Altitude(c) < LandAt;
             if (_onFoot) { if (c.IsFlying()) c.Land(); }
             else if (!c.IsFlying()) c.TakeOff();
@@ -93,6 +129,11 @@ namespace Beastkeeper
 
         internal static bool Tired { get { return _tired; } }
 
+        // Each attack uses AttackCost seconds of the flight bar (30 s in all). The bar is the same for every drake
+        // and every saddle: the saddle's tier plays no part in it. False = not enough left for an attack.
+        internal static bool CanSpend(float seconds) { return _air >= seconds - 0.001f; }
+        internal static void Spend(float seconds) { _air = Mathf.Max(0f, _air - seconds); }
+
         internal static float OffAt = -100f;       // when you last got off a drake (to explain a hit just after)
 
         internal static void OnGetOff(Character c)
@@ -101,6 +142,7 @@ namespace Beastkeeper
             Save(c);
             if (_speedOf == c && _slow >= 0f) { c.m_flySlowSpeed = _slow; c.m_flyFastSpeed = _fast; }
             if (_jog0 >= 0f) { c.m_speed = _jog0; c.m_runSpeed = _run0; }
+            if (_acc0 >= 0f) c.m_acceleration = _acc0;
             _onFoot = false;
             _speedOf = null;
             if (c.IsFlying() && Altitude(c) < LowAltitude) c.Land();
@@ -165,11 +207,15 @@ namespace Beastkeeper
                 {
                     if (c.IsFlying()) c.Land();
                     _air = Mathf.Min(Max, _air + dt * Max / Mathf.Max(1f, Plugin.DrakeRestSeconds.Value));
-                    if (_tired && _air >= Max * 0.3f) { _tired = false; Say("Your drake has rested: it can fly again."); }
-                    c.m_speed = Plugin.DrakeGroundSpeed.Value;
-                    c.m_runSpeed = Plugin.DrakeGroundSprint.Value;
-                    Vector3 onFoot = Quaternion.LookRotation(fwd) * new Vector3(move.x, 0f, move.z);
-                    if (onFoot.sqrMagnitude > 1f) onFoot.Normalize();
+                    if (_tired && _air >= Max - 0.01f) { _tired = false; Say("Your drake has rested: it can fly again."); }
+                    c.m_speed = Plugin.DrakeGroundSpeed.Value * SpeedOf(c);
+                    c.m_runSpeed = Plugin.DrakeGroundSprint.Value * SpeedOf(c);
+                    c.m_acceleration = FootAccel;   // no slow start: it walks (or runs) at its full pace from the first step
+                    // sideways it steps at 70% of its pace forward
+                    Vector3 local = new Vector3(move.x, 0f, move.z);
+                    if (local.sqrMagnitude > 1f) local.Normalize();
+                    local.x *= SideShare;
+                    Vector3 onFoot = Quaternion.LookRotation(fwd) * local;
                     c.SetLookDir(fwd, 0f);
                     c.SetMoveDir(onFoot);
                     c.SetRun(run && onFoot.sqrMagnitude > 0.01f);
@@ -177,9 +223,10 @@ namespace Beastkeeper
                     return;
                 }
             }
+            if (_acc0 >= 0f) c.m_acceleration = _acc0;   // in the air: its own easing
             if (!c.IsFlying()) c.TakeOff();
-            c.m_flySlowSpeed = Plugin.DrakeSpeed.Value;
-            c.m_flyFastSpeed = Plugin.DrakeSprintSpeed.Value;
+            c.m_flySlowSpeed = Plugin.DrakeSpeed.Value * SpeedOf(c);
+            c.m_flyFastSpeed = Plugin.DrakeSprintSpeed.Value * SpeedOf(c);
 
             float alt = Altitude(c);
             bool high = alt > LowAltitude;
@@ -192,17 +239,20 @@ namespace Beastkeeper
                 return;
             }
 
-            // the flight bar: empties up high (faster when sprinting), fills near the ground
-            if (high) _air -= dt * (run ? 1.5f : 1f);
-            else if (up <= 0f) _air += dt * Max / Mathf.Max(1f, Plugin.DrakeRestSeconds.Value);
-            _air = Mathf.Clamp(_air, 0f, Max);
-            if (_air <= 0f && !_tired) { _tired = true; Say("Your drake is tired: it glides down to rest."); }
-            if (_tired && _air >= Max * 0.3f) { _tired = false; Say("Your drake has rested: it can climb again."); }
-
+            // the flight bar: it empties all the time the drake is in the air (same rate walking pace or sprint, high or low)
+            // and only fills on the ground. Empty: the drake comes down by itself, lands, and flies again once the bar is full.
+            _air = Mathf.Max(0f, _air - dt);
+            if (_air <= 0f && !_tired) { _tired = true; Say("Your drake is tired: it comes down to rest."); }
             if (_tired)
             {
-                if (high) up = -0.6f;              // it glides down on its own
-                else up = Mathf.Min(up, 0f);       // and stays low until rested
+                up = -0.6f;
+                if (alt < LandAt + 0.3f)
+                {
+                    _onFoot = true;
+                    c.Land();
+                    Say("Your drake lands to rest. It flies again once its bar is full.");
+                    return;
+                }
             }
             float ceiling = Plugin.DrakeMaxAltitude.Value;
             if (alt > ceiling + 4f) up = Mathf.Min(up, -0.4f);   // over a cliff edge: sink back under the ceiling
@@ -343,7 +393,49 @@ namespace Beastkeeper
         private static GameObject _bar;
         private static GuiBar[] _fills;
 
+        // The flight bar, drawn by the mod itself: one section for every 5 seconds of flight (6 for 30 s), above the
+        // stamina bar. Blue; red while the drake is tired (it must fill up before it flies again).
+        private const float SectionSeconds = 5f, SideShare = 0.7f;
+        private static Texture2D _px;
+
+        internal static void DrawBar()
+        {
+            Character c = Mount.RiddenCharacter();
+            if (c == null || !Is(c) || Hud.instance == null || Event.current == null || Event.current.type != EventType.Repaint) return;
+            if (_px == null) { _px = new Texture2D(1, 1); _px.SetPixel(0, 0, Color.white); _px.Apply(); Object.DontDestroyOnLoad(_px); }
+            float s = Screen.height / 1080f;
+            int n = Mathf.Max(1, Mathf.RoundToInt(Max / SectionSeconds));
+            float w = 54f * s, h = 12f * s, gap = 4f * s;
+            float total = n * w + (n - 1) * gap;
+            float x0 = (Screen.width - total) / 2f;
+            float y = Screen.height * 0.845f;
+            RectTransform src = Hud.instance.m_staminaBar2Root;
+            if (src != null) y = Screen.height - src.position.y - 58f * src.lossyScale.y - h / 2f;   // just above the stamina bar
+            Color old = GUI.color;
+            Color fill = _tired ? new Color(0.9f, 0.32f, 0.26f) : new Color(0.5f, 0.85f, 1f);
+            for (int i = 0; i < n; i++)
+            {
+                Rect r = new Rect(x0 + i * (w + gap), y, w, h);
+                GUI.color = new Color(0f, 0f, 0f, 0.7f);
+                GUI.DrawTexture(new Rect(r.x - 2f, r.y - 2f, r.width + 4f, r.height + 4f), _px);
+                GUI.color = new Color(0.2f, 0.22f, 0.25f, 0.9f);
+                GUI.DrawTexture(r, _px);
+                float k = Mathf.Clamp01((_air - i * SectionSeconds) / SectionSeconds);
+                if (k > 0f)
+                {
+                    GUI.color = fill;
+                    GUI.DrawTexture(new Rect(r.x, r.y, r.width * k, r.height), _px);
+                }
+            }
+            GUI.color = old;
+        }
+
         internal static void UpdateBar()
+        {
+            if (_bar != null) { Object.Destroy(_bar); _bar = null; }   // the old copy of the stamina bar is gone
+        }
+
+        private static void OldUpdateBar()
         {
             Character c = Mount.RiddenCharacter();
             bool show = c != null && Is(c) && Hud.instance != null;
@@ -352,7 +444,7 @@ namespace Beastkeeper
             if (!_bar.activeSelf) _bar.SetActive(true);
             float f = _air / Max;
             Color col = _tired ? new Color(0.85f, 0.35f, 0.3f) : new Color(0.55f, 0.85f, 1f);
-            foreach (GuiBar g in _fills) if (g != null) { g.SetValue(f); g.SetColor(col); }
+            foreach (GuiBar g in _fills) if (g != null) { g.SetMaxValue(1f); g.SetValue(f); g.SetColor(col); }   // 0..1, not the player's stamina
             RectTransform src = Hud.instance.m_staminaBar2Root;
             RectTransform rt = _bar.GetComponent<RectTransform>();
             if (src != null && rt != null) rt.anchoredPosition = src.anchoredPosition + new Vector2(0f, 46f);
@@ -377,6 +469,22 @@ namespace Beastkeeper
                 gr.enabled = true;
             }
             _fills = _bar.GetComponentsInChildren<GuiBar>(true);
+            // the copy was made while the stamina bar was part empty, so it took that width as its full width:
+            // give it the real full width, or it never fills up
+            GuiBar srcBar = src.GetComponentInChildren<GuiBar>(true);
+            System.Reflection.FieldInfo fw = AccessTools.Field(typeof(GuiBar), "m_width");
+            System.Reflection.FieldInfo fb = AccessTools.Field(typeof(GuiBar), "m_bar");
+            float full = srcBar != null && fw != null ? (float)fw.GetValue(srcBar) : 0f;
+            if (full > 1f && fb != null)
+                foreach (GuiBar g in _fills)
+                {
+                    RectTransform br = g != null ? fb.GetValue(g) as RectTransform : null;
+                    if (br == null) continue;
+                    Vector2 sd = br.sizeDelta;
+                    sd.x = full;
+                    br.sizeDelta = sd;
+                    fw.SetValue(g, full);
+                }
             Plugin.Debug("[drake] flight bar made (" + _fills.Length + " fills)");
             return true;
         }

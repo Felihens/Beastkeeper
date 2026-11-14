@@ -54,10 +54,16 @@ namespace Beastkeeper
         [HarmonyPatch(typeof(Character), "RPC_SetTamed"), HarmonyPostfix]
         private static void Tamed(Character __instance)
         {
-            if (!Applies(__instance)) return;
             ZNetView nv = Leash.View(__instance);
             if (nv == null || !nv.IsValid() || !nv.IsOwner()) return;
-            Refresh(__instance);
+            if (Applies(__instance)) Refresh(__instance);
+            // taken out of a totem: it comes back as hurt as it went in
+            float share = nv.GetZDO().GetFloat(Favorite.HpShareKey, 0f);
+            if (share > 0f)
+            {
+                nv.GetZDO().Set(Favorite.HpShareKey, 0f);
+                if (share < 0.999f) __instance.SetHealth(Mathf.Max(1f, __instance.GetMaxHealth() * Mathf.Clamp01(share)));
+            }
         }
 
         [HarmonyPatch(typeof(Humanoid), "Start"), HarmonyPostfix]
