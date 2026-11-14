@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.4.0
+- Riders are now seen on the animal by other players: before, the rider showed at the animal's feet on everyone else's game. Everyone riding together needs this version.
+- Quem monta agora aparece em cima do animal para os outros jogadores: antes o cavaleiro aparecia nos pés do animal no jogo dos outros. Todos que montam juntos precisam desta versão.
+- Beast Totem: your favorite mount can now be brought back even when the game never told you it died (it died while a friend or the server owned it). The totem offers it whenever the animal can't be found, and it comes back as your favorite.
+- Totem da Fera: a sua montaria favorita agora pode ser trazida de volta mesmo quando o jogo nunca avisou que ela morreu (morreu quando um amigo ou o servidor era o dono dela). O totem oferece quando o animal não é encontrado, e ela volta como favorita.
+- Much lighter on the framerate with many animals around: tamed animals no longer scan every creature in the world, and the lasso and tie checks run less often.
+- Bem mais leve para o FPS com muitos animais por perto: animais domados não vasculham mais todas as criaturas do mundo, e as checagens de laço e amarra rodam menos vezes.
+
 ## 0.3.0
 - Drakes: after Moder, take a dragon egg from a drake nest, lay it down, give it an item that picks its element (frost, fire, poison, stone or lightning) and keep it by a fire. It hatches into a tamed baby drake that grows up and takes the new Drake Saddle. Fly it, land and walk, and attack with its element (each hits as hard; weaknesses and resistances decide). Every element has its own colours, and some drakes glow.
 - Drakes: depois da Moder, pegue um ovo de dragão de um ninho de drake, coloque no chão, dê um item que escolhe o elemento (gelo, fogo, veneno, pedra ou raio) e deixe perto de uma fogueira. Ele choca num filhote de drake domado que cresce e aceita a nova Sela de Drake. Voe, pouse e ande, e ataque com o elemento dele (todos batem igual; fraquezas e resistências decidem). Cada elemento tem suas cores, e alguns drakes brilham.

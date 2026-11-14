@@ -28,6 +28,7 @@ namespace Beastkeeper
         private Character _c;
         private ZNetView _nv;
         private Transform _seat;
+        private bool _othersRide;
         internal Transform Seat { get { return _seat; } }
         private Vector3 _move, _look;
         private bool _run;
@@ -106,6 +107,7 @@ namespace Beastkeeper
         {
             if (Riding == this && _seat != null && Sea.IsSeaMount(_c)) { Sea.Ridden(_c, _seat); return; }
             bool seat = Riding == this && _seat != null;
+            if (_othersRide && _seat != null && !Sea.IsSeaMount(_c)) _seat.rotation = transform.rotation;
             if (_look3d == null && !seat) { _avgSet = false; return; }
             // The saddle and your seat are children of the animal's back bone (like the other riding mods do), so
             // the game moves them with the body. Only your seat's facing is kept level with the animal.
@@ -400,6 +402,22 @@ namespace Beastkeeper
                 if (_look3d != null) { Destroy(_look3d); _look3d = null; }
                 if (_seat != null && !Sea.IsSeaMount(_c)) PlaceSeat();
             }
+            // Someone else is riding it: their game tells ours "the rider sits on the child named Beastkeeper_Seat".
+            // That seat is only made when you get on, so on other players' games it didn't exist and the rider was
+            // drawn at the animal's feet. Make it here too.
+            if (Riding != this && _nv != null && _nv.IsValid() && _nv.GetZDO().GetLong(RiderKey, 0L) != 0L)
+            {
+                if (_seat == null)
+                {
+                    GameObject s = new GameObject("Beastkeeper_Seat");
+                    s.transform.SetParent(transform, false);
+                    _seat = s.transform;
+                    PlaceSeat();
+                    Plugin.Debug("[ride] seat made for another player's ride on " + _c.name);
+                }
+                _othersRide = true;
+            }
+            else _othersRide = false;
             bool want = Plugin.Enabled.Value && _c != null && _nv != null && _nv.IsValid() && Saddled(_c) && !Sea.IsSeaMount(_c);
             if (want && _look3d != null && _lookTier != SaddleTier(_c)) { Destroy(_look3d); _look3d = null; }
             if (want && _look3d == null) { _lookTier = SaddleTier(_c); _look3d = MakeSaddle(); }
@@ -1035,7 +1053,7 @@ namespace Beastkeeper
         {
             Mount m = Riding;
             if (m == null || ai == null) return false;
-            Character c = AIChar != null ? AIChar.GetValue(ai) as Character : null;
+            Character c = Fast.AIChar(ai);
             if (c != m._c) return false;
             if (!m._nv.IsOwner()) m._nv.ClaimOwnership();
             Leash.Calm(ai);

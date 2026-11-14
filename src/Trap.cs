@@ -360,9 +360,9 @@ namespace Beastkeeper
         private static void Hold(BaseAI ai)
         {
             if (!Plugin.Enabled.Value) return;
-            Character c = AIChar != null ? AIChar.GetValue(ai) as Character : null;
+            Character c = Fast.AIChar(ai);
             if (c == null) return;
-            ZNetView nv = Leash.View(c);
+            ZNetView nv = Fast.AIView(ai);
             if (nv == null || !nv.IsValid() || !nv.IsOwner()) return;
             ZDO z = nv.GetZDO();
             ZDOID trapId = z.GetZDOID(HeldByKey);

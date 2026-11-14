@@ -375,9 +375,9 @@ namespace Beastkeeper
             if (!Plugin.Enabled.Value) return true;
             Player p = Player.m_localPlayer;
             if (p == null) return true;
-            ZNetView nv = AIView != null ? AIView.GetValue(ai) as ZNetView : null;
+            ZNetView nv = Fast.AIView(ai);
             if (Holder(nv) != p.GetPlayerID()) return true;
-            Character c = AIChar != null ? AIChar.GetValue(ai) as Character : null;
+            Character c = Fast.AIChar(ai);
             if (c == null || c.IsDead()) return true;
 
             if (!Tug.Is(c) && Defend.Active(ai, c, null)) return true;   // an enemy near: it fights (see Defend)

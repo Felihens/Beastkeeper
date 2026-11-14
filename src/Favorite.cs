@@ -325,7 +325,8 @@ namespace Beastkeeper
         {
             Player p = Player.m_localPlayer;
             Template t = Get(p);
-            if (!Plugin.Enabled.Value || t == null || !Dead(p) || Plugin.CallKey.Value.MainKey == KeyCode.None) return "";
+            if (!Plugin.Enabled.Value || t == null || Plugin.CallKey.Value.MainKey == KeyCode.None) return "";
+            if (!Dead(p) && (FindLoaded(t.Id) != null || FindZdo(t.Id) != null)) return "";
             return "\n[<color=yellow><b>" + Key() + "</b></color>] Bring " + t.Name() + " back (" + ReviveFood + " food)";
         }
 
@@ -333,12 +334,15 @@ namespace Beastkeeper
         {
             Template t = Get(p);
             if (t == null) { p.Message(MessageHud.MessageType.Center, "You have no favorite mount."); return; }
-            if (!Dead(p) || FindLoaded(t.Id) != null || FindZdo(t.Id) != null)
+            // found somewhere this game knows: it's alive. Not found: bring it back, even if no one told us it died
+            // (the death message can miss you, e.g. when a friend's game or the server owned it at that moment).
+            if (FindLoaded(t.Id) != null || FindZdo(t.Id) != null)
             {
                 SetDead(p, false);
                 p.Message(MessageHud.MessageType.Center, t.Name() + " is alive: press " + Key() + " anywhere to call it.");
                 return;
             }
+            Plugin.Debug("[favorite] totem: " + t.Name() + " not found (marked dead: " + Dead(p) + "), bringing it back");
             GameObject prefab = ZNetScene.instance != null ? ZNetScene.instance.GetPrefab(t.Prefab) : null;
             if (prefab == null || prefab.GetComponent<Character>() == null) return;
             string food;
@@ -348,6 +352,12 @@ namespace Beastkeeper
                 return;
             }
             long gen = DateTime.UtcNow.Ticks;
+            // a new id: if the old one was alive after all, somewhere far, it stays a normal tamed animal, not a second favorite
+            long oldId = t.Id;
+            System.Random r = new System.Random();
+            t.Id = 0L;
+            while (t.Id == 0L || t.Id == oldId) t.Id = ((long)r.Next() << 31) ^ r.Next() ^ gen;
+            p.m_customData[WorldKey("favorite")] = t.Save();
             SetGen(p, gen);
             SetDead(p, false);
             Vector3 at = SpotNear(totem.transform.position, Flat(p.transform.position - totem.transform.position));
@@ -557,7 +567,7 @@ namespace Beastkeeper
             if (_ask == null || Time.time < _ask.Until) return;
             string name = _ask.Template.Name();
             _ask = null;
-            p.Message(MessageHud.MessageType.Center, name + " is too far away to call. On a server, Beastkeeper must be on the server too for that.");
+            p.Message(MessageHud.MessageType.Center, name + " isn't nearby and the server can't look for it. If it died, look at a Beast Totem and press " + Key() + ".");
         }
 
         // A called mount that isn't the current one goes away (its bags spill first, so nothing is lost):

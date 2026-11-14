@@ -117,8 +117,11 @@ namespace Beastkeeper
             _char = GetComponent<Character>();
         }
 
+        private float _idleUntil;   // not held and not tied: look again in a moment, not every frame
+
         private void LateUpdate()
         {
+            if (Time.time < _idleUntil) return;
             long id = Plugin.Enabled.Value ? Leash.Holder(_nview) : 0L;
             if (id != _holderId) { _holderId = id; _holder = null; _nextFind = 0f; }
             if (id != 0L && _holder == null && Time.time >= _nextFind)
@@ -141,6 +144,7 @@ namespace Beastkeeper
             if (id == 0L || _holder == null || _char == null || _char.IsDead())
             {
                 if (_line != null && _line.enabled) _line.enabled = false;
+                if (id == 0L) _idleUntil = Time.time + 0.25f;
                 return;
             }
 

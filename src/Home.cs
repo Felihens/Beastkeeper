@@ -117,8 +117,8 @@ namespace Beastkeeper
         private static bool Run(BaseAI ai, float dt, ref bool result)
         {
             if (!Plugin.Enabled.Value) return true;
-            Character c = AIChar != null ? AIChar.GetValue(ai) as Character : null;
-            ZNetView nv = AIView != null ? AIView.GetValue(ai) as ZNetView : null;
+            Character c = Fast.AIChar(ai);
+            ZNetView nv = Fast.AIView(ai);
             if (c == null || nv == null || !nv.IsValid() || !nv.IsOwner() || c.IsDead() || !c.IsTamed() || c.IsPlayer()) return true;
             KeepForever(ai as MonsterAI, c);
             if (Mount.IsRidden(c) || Leash.Holder(nv) != 0L || Trap.IsHeld(c)) return true;   // someone else drives it

@@ -31,6 +31,25 @@ namespace Beastkeeper
             return f;
         }
 
+        // Creatures that could be a threat (alive, wild, with a fighting AI), gathered once for every animal
+        // instead of each tamed animal going through every creature in the world.
+        private static readonly List<Character> _threats = new List<Character>();
+        private static float _threatsAt = -99f;
+        private static List<Character> Threats()
+        {
+            if (Time.time - _threatsAt < 0.5f) return _threats;
+            _threatsAt = Time.time;
+            _threats.Clear();
+            foreach (Character o in Character.GetAllCharacters())
+            {
+                if (o == null || o.IsDead() || o.IsPlayer() || o.IsTamed()) continue;
+                BaseAI oai = o.GetBaseAI();
+                if (oai == null || oai is AnimalAI) continue;   // prey: deer, hares, fish...
+                _threats.Add(o);
+            }
+            return _threats;
+        }
+
         // post: where it's tied (its rope reaches Tie.Length around it), or null
         internal static bool Active(BaseAI ai, Character c, Vector3? post)
         {
@@ -41,11 +60,9 @@ namespace Beastkeeper
             l.Until = Time.time + 0.75f;
             l.Threat = false;
             float range = Plugin.DefendRange.Value;
-            foreach (Character o in Character.GetAllCharacters())
+            foreach (Character o in Threats())
             {
-                if (o == null || o == c || o.IsDead() || o.IsPlayer() || o.IsTamed()) continue;
-                BaseAI oai = o.GetBaseAI();
-                if (oai == null || oai is AnimalAI) continue;   // prey: deer, hares, fish...
+                if (o == null || o == c || o.IsDead()) continue;
                 if (!BaseAI.IsEnemy(c, o)) continue;
                 Vector3 at = post.HasValue ? post.Value : c.transform.position;
                 Vector3 d = o.transform.position - at;
