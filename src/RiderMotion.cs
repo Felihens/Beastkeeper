@@ -4,8 +4,8 @@ using UnityEngine;
 
 namespace Beastkeeper
 {
-    // How the saddle and the rider move with each mount's walk or run, posed frame by frame in the rider editor.
-    // For every mount and movement (walk, run) the data holds a loop of frames: the saddle's shift and turn, the
+    // How the saddle and the rider move with each mount's walk or run (and standing still: idle, a drake's hover),
+    // posed frame by frame in the rider editor. For every mount and movement the data holds a loop of frames: the saddle's shift and turn, the
     // rider's seat shift, and a turn for some of the rider's bones. The mod plays the loop in step with the
     // mount's own animation (its animator's loop position), blended in while it moves and out when it stops.
     // The data ships inside the mod (res/riders.json). A file Beastkeeper_models/riders.json, when there is one,
@@ -117,6 +117,8 @@ namespace Beastkeeper
         private static bool SingleGait(string kind) { return string.Equals(kind, "Seal", StringComparison.OrdinalIgnoreCase); }
 
         internal static bool Has(string kind) { return Find(kind, "run") != null; }
+
+        internal static bool HasClip(string kind, string label) { return label != null && Find(kind, label) != null; }
 
         // the loop of this mount and movement at 'phase' (0..1 of its animation's loop), blended by 'weight'; false = none
         internal static bool At(string kind, string label, float phase, float weight, Frame f)

@@ -156,7 +156,7 @@ namespace Beastkeeper
             if (_line == null) _line = NewLine(transform, "Beastkeeper_Rope");
             _line.enabled = true;
             _line.startWidth = _line.endWidth = Plugin.RopeWidth.Value;
-            Lay(_line, a, b, Plugin.RopeLength.Value + 0.8f - dist);
+            Lay(_line, a, b, Leash.Keep(_char) + 0.8f - dist);
         }
 
         private void OnDestroy()

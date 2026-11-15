@@ -123,6 +123,8 @@ namespace Beastkeeper
 
         private Animator _anim;
         private float _motionW;
+        private string _motionLabel;   // the loop playing (or fading out to none)
+        private float _motionLogAt;
         private readonly RiderMotion.Frame _motion = new RiderMotion.Frame();
         private Vector3 _seatBase, _saddleCentre;
         private float _saddleK = 1f, _backBs = 1f;
@@ -144,23 +146,41 @@ namespace Beastkeeper
             Vector3 vel = _c.GetVelocity();
             vel.y = 0f;
             float speed = Mathf.Max(vel.magnitude, Mathf.Abs(_anim.GetFloat(ForwardSpeed)));
-            _motionW = Mathf.MoveTowards(_motionW, moves && speed > 0.05f ? 1f : 0f, Time.deltaTime * 5f);
-            if (_motionW < 0.01f) return null;
-            // the run loop at the animal's running pace, else the walk; a drake: its flight in the air (the run loop),
-            // and on the ground its own walk, which runs by the distance it covers (DrakeWalk) and not by the animator
-            string label = speed > 0.5f * (_c.m_walkSpeed + _c.m_runSpeed) ? "run" : "walk";
-            float phase = st.normalizedTime;
-            if (Drake.Is(_c))
+            bool drake = Drake.Is(_c), flying = _c.IsFlying();
+            // Moving: the run loop at the animal's running pace, else the walk. Standing still: the idle loop.
+            // Anything else (a jump, an attack) plays no loop.
+            // A drake always has one, since its saddle's plain place is far from every posed loop: in the air its
+            // flight (the run loop) while it really flies, else its hover (the idle loop: turning round to the camera
+            // included, which used to flick it between the two); on the ground its own walk, which goes by the
+            // distance it covers (DrakeWalk) and rests on its first frame when it stands.
+            string want;
+            if (drake) want = !flying ? "walk" : speed > (_motionLabel == "run" ? 0.5f : 1.2f) ? "run" : "idle";
+            else if (moves && speed > 0.05f) want = speed > 0.5f * (_c.m_walkSpeed + _c.m_runSpeed) ? "run" : "walk";
+            else if (moves || st.IsName("Idle")) want = "idle";
+            else want = null;   // jumping, attacking, eating...
+            string kind = Kind(_c.gameObject);
+            if (!RiderMotion.HasClip(kind, want)) want = null;
+            // from one loop to another it changes at once; it fades in from no loop and out to none (fading through
+            // no loop between two of them showed the saddle's plain place for a moment: a drake's tilted far back)
+            if (want != _motionLabel && Time.time >= _motionLogAt)
             {
-                if (_c.IsFlying()) label = "run";
-                else
-                {
-                    label = "walk";
-                    DrakeWalk dw = _c.GetComponent<DrakeWalk>();
-                    if (dw != null) phase = dw.Phase;
-                }
+                _motionLogAt = Time.time + 0.5f;
+                Plugin.Debug("[rider] " + kind + ": " + (_motionLabel ?? "no loop") + " -> " + (want ?? "no loop") + " (speed " + speed.ToString("0.00") + (drake ? flying ? ", flying" : ", on the ground" : "") + ")");
             }
-            return RiderMotion.At(Kind(_c.gameObject), label, phase, _motionW, _motion) ? _motion : null;
+            if (want != null) { _motionLabel = want; _motionW = Mathf.MoveTowards(_motionW, 1f, Time.deltaTime * 5f); }
+            else
+            {
+                _motionW = Mathf.MoveTowards(_motionW, 0f, Time.deltaTime * 5f);
+                if (_motionW < 0.01f) _motionLabel = null;
+            }
+            if (_motionLabel == null || _motionW < 0.01f) return null;
+            float phase = st.normalizedTime;
+            if (drake && !flying && _motionLabel == "walk")
+            {
+                DrakeWalk dw = _c.GetComponent<DrakeWalk>();
+                if (dw != null) phase = dw.Phase;
+            }
+            return RiderMotion.At(kind, _motionLabel, phase, _motionW, _motion) ? _motion : null;
         }
 
         // the back bone's rest pose, kept: where things hung on it go (the same maths as OnBack, without redoing it every frame)
@@ -947,7 +967,8 @@ namespace Beastkeeper
             p.StartDoodadControl(this);
             p.AttachStart(_seat, _c.gameObject, true, false, false, Pose(), Vector3.up * 0.5f, null);
             p.Message(MessageHud.MessageType.Center, "Riding " + _c.GetHoverName() + (Sea.IsSeaMount(_c) ? ". Crouch to get off." : Drake.Is(_c) ? ". Jump climbs, crouch goes down. E to get off near the ground." : ". E to get off."));
-            Plugin.Debug("[ride] on " + _c.name + ", seat at " + _seat.localPosition.ToString("0.00"));
+            Plugin.Debug("[ride] on " + _c.name + ", seat at " + _seat.localPosition.ToString("0.00") + ", speeds: walk " + _c.m_walkSpeed.ToString("0.0")
+                + ", jog " + _c.m_speed.ToString("0.0") + ", run " + _c.m_runSpeed.ToString("0.0") + ", swim " + _c.m_swimSpeed.ToString("0.0") + " m/s");
         }
 
         // the game calls this when you jump, attack or dodge, or the animal is gone

@@ -22,7 +22,7 @@ namespace Beastkeeper
         private class Wander
         {
             public Vector3 Target;
-            public bool Moving;
+            public bool Moving, Homing;
             public float Until;
         }
         private static readonly Dictionary<Character, Wander> States = new Dictionary<Character, Wander>();
@@ -88,6 +88,19 @@ namespace Beastkeeper
 
         private static float Flat(Vector3 a, Vector3 b) { a.y = 0f; b.y = 0f; return Vector3.Distance(a, b); }
 
+        private const float FollowGap = 3f;
+
+        // your favorite mount follows you while you are further than FollowAwayFromTotem from every totem
+        internal static bool FollowsYou(Character c, out Player me)
+        {
+            me = Player.m_localPlayer;
+            float away = Plugin.FavoriteFollow.Value;
+            if (me == null || me.IsDead() || away <= 0f || c == null || !Favorite.IsFavorite(c)) return false;
+            if (Mount.IsRidden(c) || Tie.IsTied(c)) return false;
+            if (Totem.Nearest(me.transform.position, away) != null) return false;
+            return Flat(c.transform.position, me.transform.position) < 150f;   // left far behind: it stays where it is
+        }
+
         private static int GoEat(MonsterAI mai, Character c, bool tied, Vector3 post, float dt)
         {
             Tameable t = c.GetComponent<Tameable>();
@@ -141,6 +154,25 @@ namespace Beastkeeper
                 }
                 return true;
             }
+            Vector3 back;
+            if (!tied && Defend.Returning(c, out back))
+            {
+                Leash.Calm(ai);
+                result = true;
+                if (Flat(c.transform.position, back) > 3f) Leash.MoveTo(ai, dt, back, true); else ai.StopMoving();
+                return false;
+            }
+            Player me;
+            if (!tied && FollowsYou(c, out me))
+            {
+                // your favorite mount, while you are away from every totem: it keeps about FollowGap behind you
+                Leash.Calm(ai);
+                result = true;
+                float gap = Flat(c.transform.position, me.transform.position) - c.GetRadius();
+                if (gap > FollowGap) Leash.MoveTo(ai, dt, me.transform.position, gap > 6f);
+                else ai.StopMoving();
+                return false;
+            }
             if (!tied && mai != null && mai.GetFollowTarget() != null)                          // following its master
             {
                 GameObject ft = mai.GetFollowTarget();
@@ -172,18 +204,21 @@ namespace Beastkeeper
             d.y = 0f;
             float dist = d.magnitude;
             if (tied && dist > Tie.Length + 0.5f) { Pull(c, home, d, dist, dt); d = c.transform.position - home; d.y = 0f; dist = d.magnitude; }
-            if (gameTame && dist <= radius) return true;   // close enough: back to the game's behaviour
-
-            Leash.Calm(ai);
-            result = true;
             Wander w;
             if (!States.TryGetValue(c, out w)) { w = new Wander { Until = Time.time + Random.Range(1f, 4f) }; States[c] = w; }
             if (States.Count > 200) States.Clear();
+            if (dist > radius + 1.5f) w.Homing = true;
+            else if (dist < radius * 0.7f) w.Homing = false;
+            if (gameTame && !w.Homing && dist <= radius) return true;   // inside: back to the game's behaviour
 
-            if (dist > radius + 1.5f)
+            Leash.Calm(ai);
+            result = true;
+            if (w.Homing)
             {
-                // strayed: walk home (run when far)
-                Leash.MoveTo(ai, dt, home, dist > 25f);
+                // strayed: walk back well inside the circle (run when far), to a spot on its own side, not to the pole
+                // itself, so a farm's animals spread around the totem instead of crowding it
+                Vector3 to = dist > 0.1f ? home + d / dist * radius * 0.45f : home;
+                Leash.MoveTo(ai, dt, to, dist > 25f);
                 w.Moving = false;
                 return false;
             }

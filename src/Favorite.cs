@@ -322,11 +322,22 @@ namespace Beastkeeper
             p.Message(MessageHud.MessageType.Center, t.Name() + " died. Look at a Beast Totem and press " + Key() + " to bring it back.");
         }
 
+        private static readonly System.Reflection.FieldInfo LastHitF = HarmonyLib.AccessTools.Field(typeof(Character), "m_lastHit");
+
         // The game that owns the animal sees it die and tells everyone; its player writes it down.
         [HarmonyLib.HarmonyPatch(typeof(Character), "OnDeath"), HarmonyLib.HarmonyPrefix]
         private static void OnDeath(Character __instance)
         {
-            if (!Plugin.Enabled.Value || __instance == null || __instance.IsPlayer() || ZRoutedRpc.instance == null) return;
+            if (!Plugin.Enabled.Value || __instance == null || __instance.IsPlayer()) return;
+            if (__instance.IsTamed())
+            {
+                // any tamed animal: where and by whom, so a missing one can be traced in the log
+                HitData last = LastHitF != null ? LastHitF.GetValue(__instance) as HitData : null;
+                Character by = last != null ? last.GetAttacker() : null;
+                Plugin.Log.LogInfo("[died] tamed " + __instance.GetHoverName() + " (" + __instance.name + ") at " + __instance.transform.position.ToString("F0")
+                    + (by != null ? ", killed by " + by.GetHoverName() + " (" + by.name + ")" : ""));
+            }
+            if (ZRoutedRpc.instance == null) return;
             ZDO z = Zdo(__instance);
             if (z == null || !Leash.View(__instance).IsOwner()) return;
             long id = z.GetLong(IdKey, 0L);

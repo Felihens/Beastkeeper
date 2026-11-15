@@ -209,7 +209,7 @@ namespace Beastkeeper
                     _air = Mathf.Min(Max, _air + dt * Max / Mathf.Max(1f, Plugin.DrakeRestSeconds.Value));
                     if (_tired && _air >= Max - 0.01f) { _tired = false; Say("Your drake has rested: it can fly again."); }
                     c.m_speed = Plugin.DrakeGroundSpeed.Value * SpeedOf(c);
-                    c.m_runSpeed = Plugin.DrakeGroundSprint.Value * SpeedOf(c);
+                    c.m_runSpeed = c.m_speed;   // on foot it doesn't run: its walk is its top speed
                     c.m_acceleration = FootAccel;   // no slow start: it walks (or runs) at its full pace from the first step
                     // sideways it steps at 70% of its pace forward
                     Vector3 local = new Vector3(move.x, 0f, move.z);
@@ -218,7 +218,7 @@ namespace Beastkeeper
                     Vector3 onFoot = Quaternion.LookRotation(fwd) * local;
                     c.SetLookDir(fwd, 0f);
                     c.SetMoveDir(onFoot);
-                    c.SetRun(run && onFoot.sqrMagnitude > 0.01f);
+                    c.SetRun(false);
                     if (Time.time > _nextSave) { _nextSave = Time.time + 2f; Save(c); }
                     return;
                 }

@@ -275,8 +275,47 @@ namespace Beastkeeper
         private Character _c;
         private ZNetView _nv;
         private MonsterAI _ai;
-        private float _still, _lastLand, _walking;
-        private bool _set;
+        private float _still, _lastLand, _walking, _youStill;
+        private bool _set, _hasRest, _wing;
+        private Vector3 _restAt;
+
+        // following you (your favorite, away from totems): once you have walked FollowFlyAfter from where you stood
+        // it flies after you, and it lands only after you have stood still for FollowLandAfter
+        private const float FollowFlyAfter = 3f, FollowLandAfter = 3f;
+
+        private static float Flat(Vector3 a, Vector3 b) { a.y = 0f; b.y = 0f; return Vector3.Distance(a, b); }
+
+        // true: following you, handled here
+        private bool FollowYou(bool wants)
+        {
+            Player me;
+            if (!Home.FollowsYou(_c, out me)) { _hasRest = false; _youStill = 0f; _wing = false; return false; }
+            Vector3 at = me.transform.position;
+            Vector3 v = me.GetVelocity();
+            v.y = 0f;
+            _youStill = v.magnitude < 0.5f ? _youStill + Time.deltaTime : 0f;
+            if (!_hasRest || _youStill > FollowLandAfter) { _restAt = at; _hasRest = true; }
+            bool going = Flat(at, _restAt) > FollowFlyAfter;
+            if (going != _wing)
+            {
+                _wing = going;
+                Plugin.Debug("[drake] " + _c.name + (going ? " flies after you" : ": you stopped, it may land"));
+            }
+            _walking = 0f;
+            if (!_c.IsFlying())
+            {
+                if (going && !_c.InAttack() && Time.time - _lastLand > 1f) { _c.TakeOff(); _still = 0f; }
+                return true;
+            }
+            if (going || wants || _c.InAttack()) { _still = 0f; return true; }
+            _still += Time.deltaTime;
+            if (_still > 0.5f && Drake.Altitude(_c) < 5f && Time.time - _lastLand > 2f)
+            {
+                _lastLand = Time.time;
+                _c.Land();
+            }
+            return true;
+        }
 
         private void Awake()
         {
@@ -314,6 +353,7 @@ namespace Beastkeeper
                 _ai.m_flyAltitudeMax = 2.5f;
             }
             bool wants = _c.GetMoveDir().sqrMagnitude > 0.04f;
+            if (!led && FollowYou(wants)) return;
             if (!_c.IsFlying())
             {
                 // short ways it walks (DrakeWalk); after WalkSeconds of walking it takes off and flies the rest

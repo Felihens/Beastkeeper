@@ -84,18 +84,29 @@ namespace Beastkeeper
         private static readonly System.Reflection.FieldInfo MVel = AccessTools.Field(typeof(Projectile), "m_vel");
         private static bool _passed;   // the hit we just let the rock fly through
 
-        private static float ShotSpeed(Attack a, int el)
+        private static float ShotSpeed(Attack a, int el) { return ShotSpeedAt(a, el, _chargeUsed); }
+
+        private static float ShotSpeedAt(Attack a, int el, float charge)
         {
             float v = Mathf.Max(20f, a.m_projectileVel) * Mathf.Max(0.5f, Plugin.DrakeAttackSpeed.Value);
-            if (el == Earth) v *= 1f - 0.2f * _chargeUsed;   // a charged rock is heavier: it leaves slower
+            if (el == Earth) v *= 1f - 0.2f * charge;   // a charged rock is heavier: it leaves slower
             return v;
         }
 
         // how heavy the rock is: it falls faster than the game's own, and more the more it is charged
-        private static float EarthGravity(Shot s)
+        private static float EarthGravity(Shot s) { return EarthGravityAt(s, _chargeUsed); }
+
+        private static float EarthGravityAt(Shot s, float charge)
         {
             Projectile p = s != null && s.Prefab != null ? s.Prefab.GetComponent<Projectile>() : null;
-            return Mathf.Max(p != null ? p.m_gravity : 0f, 6f) * (1.2f + 0.8f * _chargeUsed);
+            return Mathf.Max(p != null ? p.m_gravity : 0f, 6f) * (1.2f + 0.8f * charge);
+        }
+
+        // how far the current charge has got (0 when not charging)
+        private static float ChargeNow()
+        {
+            if (_chargeStart < 0f) return 0f;
+            return Mathf.Clamp01((Time.time - _chargeStart) / Mathf.Max(0.05f, Plugin.DrakeEarthChargeSeconds.Value));
         }
 
         // the direction to throw something with speed v and gravity g so that it lands on 'to' (the low arc)
@@ -144,6 +155,10 @@ namespace Beastkeeper
         private static bool BeforeHit(Projectile __instance, Collider collider, Vector3 hitPoint, bool water, Vector3 normal)
         {
             _passed = false;
+            // an ice shard flies through the enemy its ice ball hit (a big one used to catch the shards as they left)
+            Character skip;
+            if (_shardSkip.Count > 0 && collider != null && !water && _shardSkip.TryGetValue(__instance, out skip) && skip != null
+                && collider.GetComponentInParent<Character>() == skip) { _passed = true; return false; }
             RockInfo info;
             if (_rocks.Count == 0 || collider == null || water || !_rocks.TryGetValue(__instance, out info)) return true;
             Character ch = collider.GetComponentInParent<Character>();
@@ -215,6 +230,7 @@ namespace Beastkeeper
         }
 
         private static readonly Dictionary<Projectile, Ice> _ice = new Dictionary<Projectile, Ice>();
+        private static readonly Dictionary<Projectile, Character> _shardSkip = new Dictionary<Projectile, Character>();   // shard -> the enemy it flies through
 
         private const float ShardSeek = 18f;   // shards look for enemies this close to where the ball broke
 
@@ -244,7 +260,9 @@ namespace Beastkeeper
             {
                 _ice.Remove(__instance);
                 if (_ice.Count > 24) { List<Projectile> dead = new List<Projectile>(); foreach (Projectile k in _ice.Keys) if (k == null) dead.Add(k); foreach (Projectile k in dead) _ice.Remove(k); }
-                if (!water) Shatter(ice, hitPoint, normal);
+                Character struck = collider != null ? collider.GetComponentInParent<Character>() : null;
+                if (!water && struck != null && ice.Owner != null && !IsAlly(struck) && BaseAI.IsEnemy(ice.Owner, struck)) Blizzard.Begin(ice.Owner, struck);
+                if (!water) Shatter(ice, hitPoint, normal, struck);
             }
         }
 
@@ -338,10 +356,26 @@ namespace Beastkeeper
 
         // the ball breaks: N shards leave the spot in random directions (above the surface it hit),
         // none closer than ShardAngle to another one
-        private static void Shatter(Ice ice, Vector3 at, Vector3 normal)
+        // struck: the enemy the ball hit, if any. The shards then leave from just outside it, away from it, and
+        // go for the others: born inside it they used to hit it again at once and vanish, so nothing showed.
+        private static void Shatter(Ice ice, Vector3 at, Vector3 normal, Character struck)
         {
             int n = Plugin.DrakeFrostShards.Value;
             if (n <= 0 || ice == null || ice.Owner == null || ice.Shot == null || ice.Shot.Prefab == null) return;
+            if (struck != null && struck != ice.Owner)
+            {
+                Vector3 c = struck.GetCenterPoint();
+                Vector3 away = at - c;
+                away.y = 0f;
+                if (away.sqrMagnitude < 0.01f) away = -struck.transform.forward;
+                away = away.normalized + Vector3.up * 0.6f;
+                normal = away.normalized;
+                float reachOut = 0.6f;
+                Collider body = struck.GetComponent<Collider>();
+                if (body != null) reachOut += Mathf.Max(body.bounds.extents.x, body.bounds.extents.z);
+                at = c + normal * reachOut;
+            }
+            else struck = null;
             if (normal.sqrMagnitude < 0.01f) normal = Vector3.up;
             normal.Normalize();
             if (Vector3.Dot(normal, Vector3.up) < -0.3f) normal = -normal;   // hit something from below/behind: still scatter upward
@@ -354,7 +388,7 @@ namespace Beastkeeper
             List<Character> foes = new List<Character>();
             foreach (Character ch in Character.GetAllCharacters())
             {
-                if (ch == null || ch.IsDead() || ch == ice.Owner || ch == Player.m_localPlayer) continue;
+                if (ch == null || ch.IsDead() || ch == ice.Owner || ch == Player.m_localPlayer || ch == struck) continue;
                 if (Vector3.Distance(ch.transform.position, at) > ShardSeek) continue;
                 if (IsAlly(ch) || !BaseAI.IsEnemy(ice.Owner, ch)) continue;
                 foes.Add(ch);
@@ -388,6 +422,12 @@ namespace Beastkeeper
                 dirs.Add(pick);
                 reach.Add(0f);
             }
+            if (_shardSkip.Count > 48)
+            {
+                List<Projectile> gone = new List<Projectile>();
+                foreach (Projectile k in _shardSkip.Keys) if (k == null) gone.Add(k);
+                foreach (Projectile k in gone) _shardSkip.Remove(k);
+            }
             int made = 0;
             for (int k = 0; k < dirs.Count; k++)
             {
@@ -401,10 +441,11 @@ namespace Beastkeeper
                 pr.Setup(ice.Owner, dir * v, ice.Shot.Attack != null ? ice.Shot.Attack.m_attackHitNoise : 0f, PartOf(ice.Hit, n), ice.Shot.Item, null);
                 Projectile fly = go.GetComponent<Projectile>();
                 if (fly != null) fly.m_ttl = aimed ? Mathf.Clamp(reach[k] / v * 1.6f, 0.4f, 1.6f) : Mathf.Min(fly.m_ttl, 1.2f);
+                if (fly != null && struck != null) _shardSkip[fly] = struck;
                 go.transform.localScale *= 0.8f;
                 made++;
             }
-            Plugin.Debug("[drake] the ice ball broke into " + made + " shards (at least " + angle.ToString("0") + " degrees apart)");
+            Plugin.Debug("[drake] the ice ball broke into " + made + " shards (at least " + angle.ToString("0") + " degrees apart)" + (struck != null ? " on " + struck.name : ""));
         }
     }
 }

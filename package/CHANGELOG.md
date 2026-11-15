@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.6.0
+- Beast Totem: its animals graze inside an 8 m circle (was 12 m), shown while you place the totem or look at it; animals that stray walk back into it.
+- Totem das Feras: os animais dele pastam dentro de um círculo de 8 m (antes 12 m), que aparece ao posicionar o totem ou olhar para ele; animais que se afastam voltam para dentro.
+- Defenders no longer back away from enemies, and stop chasing 30 m away and come back (new setting ChaseLimit).
+- Defensores não recuam mais dos inimigos, e param de perseguir a 30 m e voltam (nova opção ChaseLimit).
+- Your favorite mount follows you when you are more than 40 m from any totem (new setting FollowAwayFromTotem). A favorite drake follows on the wing: it takes off once you have walked 3 m and lands after you stand still for 3 seconds.
+- A sua montaria favorita segue você quando você está a mais de 40 m de qualquer totem (nova opção FollowAwayFromTotem). Um drake favorito segue voando: decola depois que você anda 3 m e pousa quando você fica parado por 3 segundos.
+- Animals on the lasso keep a 1.5 m gap from you.
+- Animais no laço mantêm 1,5 m de distância de você.
+- Drakes: each drake keeps its own attack cooldown; marks on the ground show where an attack will land (new setting AttackPreview); on the ground a drake only walks (the GroundSprint setting is gone).
+- Drakes: cada drake tem o próprio tempo de recarga de ataque; marcas no chão mostram onde o ataque vai cair (nova opção AttackPreview); no chão o drake só anda (a opção GroundSprint foi removida).
+- Frost drake: its attack raises a blizzard (5 m) that slows enemies to half speed. The blizzard has its own 6-second wait, shown by a second icon beside the attack cooldown, which resets when the enemy dies. Ice shards now start outside the enemy they hit and fly through it.
+- Drake de gelo: o ataque levanta uma nevasca (5 m) que deixa os inimigos com metade da velocidade. A nevasca tem a própria espera de 6 segundos, mostrada num segundo ícone ao lado da recarga do ataque, que zera quando o inimigo morre. Os estilhaços de gelo agora saem de fora do inimigo atingido e passam através dele.
+- Riding: the saddle and rider also move with the animal's idle (an asksvin standing, a drake hovering), loops change smoothly, and the drake saddle sits in place.
+- Montaria: a sela e o cavaleiro também acompanham o animal parado (um asksvin em pé, um drake pairando), as animações trocam suavemente, e a sela do drake fica no lugar.
+
 ## 0.5.0
 - Beast Totem: press E on a totem to store your favorite mount inside it and take it out at any totem, with its saddle, stars, name and health. An animal can be the favorite of only one player.
 - Totem das Feras: aperte E num totem para guardar a sua montaria favorita dentro dele e tirar em qualquer totem, com sela, estrelas, nome e vida. Um animal só pode ser favorito de um jogador.

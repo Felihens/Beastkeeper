@@ -207,7 +207,12 @@ namespace Beastkeeper
             if (ShotOf(el) == null) { Say("Your drake has no attack."); return; }
             if (!CanSpend(AttackCost())) { Say("Your drake is too tired to attack: let it rest near the ground."); return; }
             // the target is fixed at the click (not when the animation lets go of the shot a moment later)
-            if (_queuedC == null) { _aimAt = AimPoint(c, rider); _aimFoe = el == Lightning ? AimFoe(c, _aimAt) : null; }
+            if (_queuedC == null)
+            {
+                _aimAt = AimPoint(c, rider);
+                _aimFoe = FoeFor(c, _aimAt, el, ShotOf(el));   // lightning finds it; frost and fire lead it a little
+                if (_aimFoe != null) Plugin.Debug("[drake] " + ElementName(el) + " aimed at " + _aimFoe.name);
+            }
             if (_queuedC == null && !c.IsFlying())
             {
                 if (!TakeOffToAttack(c)) { Say("Your drake is too tired to fly up and attack."); return; }
@@ -244,7 +249,7 @@ namespace Beastkeeper
             }
             // no animation to wait for: shoot now
             Launch(c, rider);
-            _nextShot = Time.time + Mathf.Max(0.2f, Plugin.DrakeAttackCooldown.Value);
+            _nextShot = Time.time + CooldownOf(el);
         }
 
         // the drake's own attack with a projectile (its spit), else any attack with an animation
@@ -258,6 +263,12 @@ namespace Beastkeeper
                 if (any == null) any = it;
             }
             return any;
+        }
+
+        // every element waits AttackCooldown (the frost blizzard has a wait of its own, see Blizzard)
+        internal static float CooldownOf(int el)
+        {
+            return Mathf.Max(0.2f, Plugin.DrakeAttackCooldown.Value);
         }
 
         // the game's own moment for the shot (the attack's animation event): shoot ours instead
@@ -319,7 +330,7 @@ namespace Beastkeeper
                 _pending = null;
                 // a stream's wait starts with the stream, so fire and poison attack as often as the single shots
                 float from = IsStream(el) ? _burstEnd - BurstSeconds(el) : Time.time;
-                _nextShot = Mathf.Max(Time.time, from + Mathf.Max(0.2f, Plugin.DrakeAttackCooldown.Value)) + _saved;
+                _nextShot = Mathf.Max(Time.time, from + CooldownOf(el)) + _saved;
                 _saved = 0f;
             }
         }
@@ -486,6 +497,7 @@ namespace Beastkeeper
         {
             if (s == null || c == null) return;
             int el = ElementOf(c);
+            Attack a = s.Attack;
             Vector3 from = c.GetHeadPoint();
             Vector3 target = _aimAt;
             if (target == Vector3.zero) target = AimPoint(c, rider);
@@ -494,13 +506,16 @@ namespace Beastkeeper
             // lightning finds the enemy you had in your sights when you clicked, wherever it has moved to since
             Character foe = el == Lightning && _aimFoe != null && !_aimFoe.IsDead() ? _aimFoe : null;
             if (foe != null) target = foe.GetCenterPoint();
+            // frost and fire: a light aim help, only for the enemy marked while aiming (close to where you aimed);
+            // the shot goes where that enemy will be when it gets there
+            if ((el == Frost || el == Fire) && !s.AtTarget && _aimFoe != null && !_aimFoe.IsDead())
+                target = Lead(from, _aimFoe, ShotSpeed(a, el));
             if (el == Lightning && Vector3.Distance(from, target) > reach)
             {
                 target = from + (target - from).normalized * reach;
                 if (ZoneSystem.instance != null) target.y = Mathf.Max(ZoneSystem.instance.GetGroundHeight(target), ZoneSystem.instance.m_waterLevel);
             }
             Vector3 dir = (target - from).normalized;
-            Attack a = s.Attack;
             // the rock is heavy: it falls as it flies, so it leaves a bit higher to still land where you aimed
             if (el == Earth && !s.AtTarget) dir = Lob(from, target, ShotSpeed(a, el), EarthGravity(s));
             Quaternion look = Quaternion.LookRotation(dir);
@@ -540,7 +555,7 @@ namespace Beastkeeper
             int count = s.AtTarget ? 1 : Mathf.Clamp(a.m_projectiles, 1, 12);
             if (IsStream(el) || el == Frost || el == Earth) count = 1;   // one ball with all the damage, not a spray that mostly misses
             float speed = ShotSpeed(a, el);
-            float spread = IsStream(el) ? 4f : count > 1 ? Mathf.Min(6f, a.m_projectileAccuracy) : 0f;
+            float spread = el == Poison ? PoisonSpread : IsStream(el) ? 4f : count > 1 ? Mathf.Min(6f, a.m_projectileAccuracy) : 0f;
             if (count > 1) { DamageTypes_Scale(ref hd, 1f / count); }
             for (int i = 0; i < count; i++)
             {
@@ -555,6 +570,7 @@ namespace Beastkeeper
                 if (el == Earth && fly != null) Rock(fly, go);
                 if (el == Frost && fly != null && Shards(s)) _ice[fly] = new Ice { Owner = c, Shot = s, Hit = hd, Speed = speed };
                 if (el == Lightning && fly != null && !s.AtTarget) fly.m_ttl = Mathf.Min(fly.m_ttl, reach / Mathf.Max(1f, speed));
+                if (el == Poison && fly != null) Wider(fly);
                 if (el == Frost && !s.AtTarget) go.transform.localScale *= Mathf.Max(0.5f, Plugin.DrakeFrostSize.Value);   // a bigger ice ball
             }
 
@@ -602,11 +618,10 @@ namespace Beastkeeper
         private static Character _aimFoe;
         private const float AimHelpDegrees = 7f, AimHelpNear = 4f;
 
-        private static Character AimFoe(Character c, Vector3 aim)
+        private static Character AimFoe(Character c, Vector3 aim, float reach, float degrees, float nearBy)
         {
             Transform cam = GameCamera.instance != null ? GameCamera.instance.transform : null;
             if (cam == null) return null;
-            float reach = Plugin.DrakeLightningRange.Value + 5f;
             Character best = null;
             float bestScore = float.MaxValue;
             foreach (Character ch in Character.GetAllCharacters())
@@ -618,12 +633,11 @@ namespace Beastkeeper
                 if (Vector3.Dot(to, cam.forward) <= 0f) continue;
                 float ang = Vector3.Angle(cam.forward, to);
                 float near = Vector3.Distance(p, aim);
-                if (ang > AimHelpDegrees && near > AimHelpNear) continue;
+                if (ang > degrees && near > nearBy) continue;
                 if (!BaseAI.IsEnemy(c, ch)) continue;
                 float score = Mathf.Min(ang, near * 2f);
                 if (score < bestScore) { bestScore = score; best = ch; }
             }
-            if (best != null) Plugin.Debug("[drake] lightning aimed at " + best.name);
             return best;
         }
 

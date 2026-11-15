@@ -114,6 +114,17 @@ namespace Beastkeeper
             if (mai != null && TargetCreature != null) TargetCreature.SetValue(mai, null);
         }
 
+        // An animal on the rope stands at least MinGap from you, measured from its side (not its middle), so big ones
+        // don't push you; every rope distance (stand, run, taut, slip) reaches that much further for it.
+        private const float MinGap = 1.5f;
+
+        internal static float Keep(Character c)
+        {
+            return c == null ? Plugin.RopeLength.Value : Mathf.Max(Plugin.RopeLength.Value, MinGap + c.GetRadius());
+        }
+
+        internal static float Slack(Character c) { return Keep(c) - Plugin.RopeLength.Value; }
+
         internal static void MoveTo(BaseAI ai, float dt, Vector3 point, bool run)
         {
             if (MoveToM != null) MoveToM.Invoke(ai, new object[] { dt, point, 0f, run });
@@ -297,7 +308,7 @@ namespace Beastkeeper
                 ZDO zdo = nv.GetZDO();
                 float dist = Vector3.Distance(c.transform.position, p.transform.position);
 
-                if (!Tug.Is(c) && !InGrace(c) && dist > Plugin.BreakDistance.Value)
+                if (!Tug.Is(c) && !InGrace(c) && dist > Plugin.BreakDistance.Value + Slack(c))
                 {
                     Release(c, c.IsTamed());
                     Effects.Shake(2f);
@@ -335,7 +346,7 @@ namespace Beastkeeper
             if (!Plugin.Enabled.Value || _mine.Count == 0 || SemanChar == null) return;
             Player p = Player.m_localPlayer;
             if (p == null || SemanChar.GetValue(__instance) as Character != p) return;
-            float slow = Plugin.SlowDistance.Value, brk = Mathf.Max(slow + 0.1f, Plugin.BreakDistance.Value);
+            float slow0 = Plugin.SlowDistance.Value, brk0 = Mathf.Max(slow0 + 0.1f, Plugin.BreakDistance.Value);
             Vector3 move = new Vector3(dir.x, 0f, dir.z);
             if (move.sqrMagnitude < 0.0001f) return;
             move.Normalize();
@@ -343,6 +354,7 @@ namespace Beastkeeper
             foreach (Character c in _mine)
             {
                 if (c == null || Tug.Is(c)) continue;
+                float slack = Slack(c), slow = slow0 + slack, brk = brk0 + slack;
                 Vector3 away = p.transform.position - c.transform.position;
                 away.y = 0f;
                 float d = away.magnitude;
@@ -385,13 +397,21 @@ namespace Beastkeeper
             Calm(ai);
             if (Tug.Is(c)) { Tug.Drive(ai, c, p, dt); return false; }
 
-            float dist = Vector3.Distance(c.transform.position, p.transform.position);
-            if (dist < Plugin.RopeLength.Value) { ai.StopMoving(); Squeeze.Forget(c); }
+            Vector3 off = c.transform.position - p.transform.position;
+            off.y = 0f;
+            float dist = off.magnitude, keep = Keep(c);
+            if (dist < keep - 0.8f && dist > 0.01f)
+            {
+                // too close: it steps back off you
+                MoveTo(ai, dt, p.transform.position + off / dist * (keep + 0.3f), false);
+                Squeeze.Forget(c);
+            }
+            else if (dist < keep) { ai.StopMoving(); Squeeze.Forget(c); }
             else
             {
-                bool run = dist > Plugin.RunDistance.Value;
+                bool run = dist > Plugin.RunDistance.Value + Slack(c);
                 MoveTo(ai, dt, p.transform.position, run);
-                Squeeze.Check(ai, c, p.transform, Plugin.RopeLength.Value + 1f, run);   // a door in the way
+                Squeeze.Check(ai, c, p.transform, keep + 1f, run);   // a door in the way
             }
             return false;
         }

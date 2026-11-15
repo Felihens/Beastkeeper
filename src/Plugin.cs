@@ -11,7 +11,7 @@ namespace Beastkeeper
     {
         public const string GUID = "felih.Beastkeeper";
         public const string NAME = "Beastkeeper";
-        public const string VERSION = "0.5.0";
+        public const string VERSION = "0.6.0";
 
         internal static ManualLogSource Log;
         internal static Plugin Instance;
@@ -39,16 +39,16 @@ namespace Beastkeeper
         internal static ConfigEntry<float> TotemRange, TotemRadius, WanderRadius;
         internal static ConfigEntry<bool> TamedDefend;
         internal static ConfigEntry<string> TamedHealth, TamedDamage;
-        internal static ConfigEntry<float> DefendRange;
+        internal static ConfigEntry<float> DefendRange, ChaseLimit, FavoriteFollow;
         internal static ConfigEntry<KeyboardShortcut> CallKey;
         internal static ConfigEntry<string> DrakeMounts;
         internal static ConfigEntry<float> DrakeSize, DrakeSpeed, DrakeSprintSpeed, DrakeFlightSeconds, DrakeRestSeconds, DrakeMaxAltitude;
-        internal static ConfigEntry<bool> DrakeAttackInAir, DrakeEggNeedsFire, RiderMotionOn, DrakeSpareParty, DrakeEarthRicochet, DrakeEarthCrater, DrakeEarthRoll;
+        internal static ConfigEntry<bool> DrakeAttackInAir, DrakeEggNeedsFire, RiderMotionOn, DrakeSpareParty, DrakeEarthRicochet, DrakeEarthCrater, DrakeEarthRoll, DrakeAttackPreview;
         internal static ConfigEntry<int> DrakeFrostShards;
         internal static ConfigEntry<float> DrakeFrostShardAngle, DrakeEarthChargeSeconds, DrakeEarthChargeMax;
         internal static ConfigEntry<float> DrakeHatchMinutes, DrakeGrowMinutes, DrakeEggAlertRange, DrakeAttackDamage, DrakeFireMax, DrakeAttackSpeed, DrakeAttackCooldown, DrakeGlowChance;
         internal static ConfigEntry<string>[] DrakeColors;
-        internal static ConfigEntry<float> DrakeWalkSeconds, DrakeGroundSpeed, DrakeGroundSprint, DrakeFrostSize, DrakeAttackAirCost, DrakeLightningRange;
+        internal static ConfigEntry<float> DrakeWalkSeconds, DrakeGroundSpeed, DrakeFrostSize, DrakeAttackAirCost, DrakeLightningRange;
 
         private void Awake()
         {
@@ -119,8 +119,8 @@ namespace Beastkeeper
 
             TotemRange = Bind("7 - Beast totem", "Range", 60f,
                 new ConfigDescription("Tamed animals within this distance of a totem belong to it (metres).", new AcceptableValueRange<float>(10f, 300f)));
-            TotemRadius = Bind("7 - Beast totem", "Radius", 12f,
-                new ConfigDescription("Tamed animals that stray further than this from their totem walk back (metres).", new AcceptableValueRange<float>(3f, 100f)));
+            TotemRadius = Bind("7 - Beast totem", "Radius", 8f,
+                new ConfigDescription("A totem's animals graze inside this circle around it (shown while you place or look at a totem); those that stray further walk back well inside it (metres).", new AcceptableValueRange<float>(3f, 100f)));
             WanderRadius = Bind("7 - Beast totem", "WanderRadius", 6f,
                 new ConfigDescription("Animals tamed with a halter graze this far around the spot where you left them (when no totem is near).", new AcceptableValueRange<float>(1f, 50f)));
 
@@ -132,6 +132,10 @@ namespace Beastkeeper
                 "Tamed animals that can fight (wolf, boar, bear, asksvin, lox...) attack enemies that come near, even while tied, kept by a totem or on your lasso. Off: they stay calm.");
             DefendRange = Bind("8 - Defending", "Range", 15f,
                 "How close (metres) an enemy must come before a tamed animal fights it. For a tied animal, counted from the reach of its rope.");
+            ChaseLimit = Bind("8 - Defending", "ChaseLimit", 30f,
+                new ConfigDescription("A tamed animal (a drake too) chases an enemy no further than this from where it was (its totem, its rope, you), then comes back (metres).", new AcceptableValueRange<float>(10f, 200f)));
+            FavoriteFollow = Bind("10 - Favorite mount", "FollowAwayFromTotem", 40f,
+                new ConfigDescription("Your favorite mount follows you (about 3 m behind) while you are further than this from any Beast Totem; near one it stays at the totem (metres, 0 = off).", new AcceptableValueRange<float>(0f, 300f)));
             CallKey = Bind("10 - Favorite mount", "CallKey", new KeyboardShortcut(KeyCode.U),
                 "Looking at a tamed animal that has worn a saddle: makes it your favorite mount (press again to undo). Anywhere else: calls your favorite mount to your side, wherever it is. None = off.");
             DrakeMounts = Bind("11 - Drake", "Drakes", "Hatchling",
@@ -188,9 +192,7 @@ namespace Beastkeeper
             DrakeFrostSize = Bind("11 - Drake", "FrostSize", 2.5f,
                 new ConfigDescription("How much bigger than the game's own ice ball a frost drake's shot is.", new AcceptableValueRange<float>(0.5f, 6f)));
             DrakeGroundSpeed = Bind("11 - Drake", "GroundSpeed", 6f,
-                new ConfigDescription("How fast a drake walks under its rider after landing (metres per second).", new AcceptableValueRange<float>(1f, 15f)));
-            DrakeGroundSprint = Bind("11 - Drake", "GroundSprint", 12f,
-                new ConfigDescription("How fast it walks with the run key, on the ground (metres per second).", new AcceptableValueRange<float>(1f, 20f)));
+                new ConfigDescription("How fast a drake walks under its rider after landing (metres per second). On the ground it never runs: this is its top speed.", new AcceptableValueRange<float>(1f, 15f)));
             DrakeGlowChance = Bind("11 - Drake", "GlowChance", 0.2f,
                 new ConfigDescription("Chance a drake hatches with eyes and horns that glow in its element's colour (0 = never, 1 = always).", new AcceptableValueRange<float>(0f, 1f)));
             DrakeAttackAirCost = Bind("11 - Drake", "AttackCost", 5f,
@@ -209,6 +211,8 @@ namespace Beastkeeper
                 "On: when the stone drake's rock lands on the ground it rolls on for 15 m (hitting enemies in its way), then breaks. A wall, tree or boulder breaks it at once.");
             DrakeEarthRicochet = Bind("11 - Drake", "EarthRicochet", false,
                 "On: the stone drake's rock bounces once off a wall, tree or boulder in its way (at the angle of the surface) and breaks on the next hit.");
+            DrakeAttackPreview = Bind("11 - Drake", "AttackPreview", true,
+                "On: while you aim from a drake (right mouse button), gold marks on the ground show where its attack lands: the lightning's damage and push circles, the rock's path and landing spot, the poison's spray. Frost and fire mark the enemy they go for.");
             DrakeEarthCrater = Bind("11 - Drake", "EarthCrater", true,
                 "On: where the rock lands it splashes earth and dust on the ground (only a visual, it fades after 5 seconds).");
             DrakeAttackCooldown = Bind("11 - Drake", "AttackCooldown", 1.5f,
@@ -306,6 +310,7 @@ namespace Beastkeeper
             Favorite.Update();
             Throw.Update();
             Show.Update();
+            TotemRing.Update();
             Sea.UpdateBar();
             Drake.UpdateBar();
             Drake.Tick();
