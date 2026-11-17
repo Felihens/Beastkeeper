@@ -55,7 +55,7 @@ namespace Beastkeeper
         private static float _slowedSpeed;
         private const float BurstSlow = 0.5f;
         // fire: 1 + 6 fireballs over 1.5 s (one every 0.25 s); poison: 1 + 10 over 1.6 s
-        private static float BurstSeconds(int el) { return el == Fire ? 1.5f : 1.6f; }
+        private static float BurstSeconds(int el) { return el == Fire ? 1.5f : el == Frost ? BeamSeconds : 1.6f; }
         private static float BurstEvery(int el) { return el == Fire ? 0.25f : 0.16f; }
 
         private static bool IsStream(int el) { return el == Fire || el == Poison; }
@@ -202,6 +202,7 @@ namespace Beastkeeper
         {
             if (Time.time < _nextShot || _pending != null || _burstLeft > 0) return;
             if (!Aiming) { Say("Hold the right mouse button to aim, then shoot with the left."); return; }
+            if (OverSea(c)) { Say("Your drake can't attack over deep water."); return; }
             if (!MayAttack(c)) { Say("Too high to attack: fly lower."); return; }
             int el = ElementOf(c);
             if (ShotOf(el) == null) { Say("Your drake has no attack."); return; }
@@ -293,6 +294,9 @@ namespace Beastkeeper
 
         internal static void Tick()
         {
+            RegisterBeam();
+            RegisterSpike();
+            Blizzard.Register();
             Character ridden = Mount.RiddenCharacter();
             if (ridden != null && !Is(ridden)) ridden = null;
             if (ridden != _timerOf) SwitchDrake(ridden);
@@ -324,12 +328,12 @@ namespace Beastkeeper
             }
             Humanoid h = c as Humanoid;
             bool animating = h != null && h.InAttack();
-            if (_launched && _burstLeft <= 0 && (!animating || Time.time - _startedAt > 8f))
+            if (_launched && _burstLeft <= 0 && !BeamActive && (!animating || Time.time - _startedAt > 8f))
             {
                 Slow(null, false);
                 _pending = null;
                 // a stream's wait starts with the stream, so fire and poison attack as often as the single shots
-                float from = IsStream(el) ? _burstEnd - BurstSeconds(el) : Time.time;
+                float from = IsStream(el) || UsesBeam(el) ? _burstEnd - BurstSeconds(el) : Time.time;
                 _nextShot = Mathf.Max(Time.time, from + CooldownOf(el)) + _saved;
                 _saved = 0f;
             }
@@ -363,8 +367,8 @@ namespace Beastkeeper
         {
             _dealt.Clear();
             _starMult = DamageOf(Mount.RiddenCharacter());
-            _attackMult = el == Earth ? 1f + _chargeUsed * (Plugin.DrakeEarthChargeMax.Value - 1f) : el == Frost && Plugin.DrakeFrostShards.Value > 0 ? 1.2f : 1f;   // frost: ball + shards go past the usual limit
-            _attackUntil = Time.time + (IsStream(el) ? BurstSeconds(el) : 0f) + 5f;
+            _attackMult = el == Earth ? 1f + _chargeUsed * (Plugin.DrakeEarthChargeMax.Value - 1f) : UsesBeam(el) ? FrostMult : 1f;   // the frost beam hits a little harder
+            _attackUntil = Time.time + (IsStream(el) || UsesBeam(el) ? BurstSeconds(el) : 0f) + 5f;
         }
 
         // ---- party members are spared (Shieldmates / Warband, optional: found by name, so nothing breaks without it)
@@ -484,6 +488,19 @@ namespace Beastkeeper
             int el = ElementOf(c);
             Shot s = ShotOf(el);
             if (s == null) return;
+            if (UsesSpike(el))
+            {
+                // the stone spike (StoneSpike.cs): it bursts out of the ground where you aimed
+                Erupt(c);
+                return;
+            }
+            if (UsesBeam(el))
+            {
+                // the frost beam (DrakeBeam.cs): lasts BeamSeconds, the wait starts with it like a stream's
+                BeamStart(c, rider);
+                _burstEnd = Time.time + BeamSeconds;
+                return;
+            }
             Spawn(c, rider, s, true);
             if (IsStream(el))
             {

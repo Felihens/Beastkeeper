@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.7.0
+- Frost drake: a beam of ice for 1 s that goes exactly where you aim, instead of the ice ball. The aim turns slowly while it lasts, the screen shakes a little, and its damage grows the longer it stays on one enemy. The blizzard starts small and grows while the beam keeps hitting.
+- Drake de gelo: um raio de gelo de 1 s que vai exatamente onde você mira, no lugar da bola de gelo. A mira gira devagar enquanto ele dura, a tela treme um pouco, e o dano cresce quanto mais tempo ele fica num inimigo. A nevasca começa pequena e cresce enquanto o raio continua acertando.
+- Stone drake: a stone spike bursts out of the ground with smaller stones around it, instead of the rock, and sinks after 1.5 s. Charging makes it bigger; enemies near its centre are thrown far.
+- Drake de pedra: um espinho de pedra sai do chão com pedras menores em volta, no lugar da rocha, e afunda depois de 1,5 s. Carregar deixa ele maior; inimigos perto do centro voam longe.
+- Everybody with the mod sees the beam, the blizzard and the spike. Drakes fighting on their own use them too.
+- Todos com o mod veem o raio, a nevasca e o espinho. Drakes lutando sozinhos também usam esses ataques.
+- While you aim from a drake, the camera moves over your shoulder.
+- Ao mirar de um drake, a câmera vai para cima do ombro.
+- Lox, asksvin and moose wear the game's own saddle for them and the rider sits in the game's own riding pose; riding itself works as before.
+- Lox, asksvin e alce usam a sela do próprio jogo para eles e o cavaleiro senta na pose de montaria do próprio jogo; montar funciona como antes.
+- Beast Totem: up to 10 other tamed animals can be stored inside it besides your favorite, and taken out at any totem.
+- Totem das Feras: até 10 outros animais domados podem ser guardados dentro dele além da favorita, e tirados em qualquer totem.
+- Riding: Shift switches running on and off when the game's Toggle run option is on; items near the animal's feet are picked up.
+- Montaria: Shift liga e desliga a corrida quando a opção Alternar corrida do jogo está ligada; itens perto das patas do animal são pegos.
+- Drakes stop at the shore of deep water instead of flying out over the sea.
+- Drakes param na beira de água funda em vez de voar por cima do mar.
+
 ## 0.6.0
 - Beast Totem: its animals graze inside an 8 m circle (was 12 m), shown while you place the totem or look at it; animals that stray walk back into it.
 - Totem das Feras: os animais dele pastam dentro de um círculo de 8 m (antes 12 m), que aparece ao posicionar o totem ou olhar para ele; animais que se afastam voltam para dentro.

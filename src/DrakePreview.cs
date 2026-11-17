@@ -78,9 +78,9 @@ namespace Beastkeeper
             switch (el)
             {
                 case Lightning: DrawLightning(c, aim, s); break;
-                case Earth: DrawRock(c, aim, s); break;
+                case Earth: DrawSpike(c, aim); break;
                 default:
-                    Character foe = FoeFor(c, aim, el, s);
+                    Character foe = UsesBeam(el) ? null : FoeFor(c, aim, el, s);   // the beam goes exactly where you aim
                     if (foe != null) MarkFoe(foe);
                     break;
             }
@@ -256,6 +256,18 @@ namespace Beastkeeper
                 for (float d = 0f; d <= RollDistance; d += 0.75f) _path.Add(hit.point + flat * d + Vector3.up * 0.5f);
                 Stripes(_path, width, true);
             }
+        }
+
+        // the stone spike: where it comes out, how far it hits (outer circle) and the strong centre (inner circle);
+        // both grow while it charges
+        private static void DrawSpike(Character c, Vector3 aim)
+        {
+            float k = ChargeNow();
+            Vector3 at, normal;
+            if (!SpikeSpot(c, aim, out at, out normal)) return;
+            Vector3 center = at + Vector3.up * Lift;
+            Circle(center, SpikeArea(k), false);
+            Circle(center, SpikeCore(k), false);
         }
 
         // two stripes on the ground under a path, 'width' apart

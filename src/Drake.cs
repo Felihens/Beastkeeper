@@ -31,6 +31,7 @@ namespace Beastkeeper
         private static float _jog0 = -1f, _run0 = -1f; // its own walking speeds, put back when you get off
         private static float _acc0 = -1f;              // its own acceleration: on foot under a rider it is at full speed at once
         private const float FootAccel = 100f;
+        private const float DeepWater = 1.2f;          // water deeper than this (metres) is "the sea" for a drake
         private const float LandAt = 1.2f;             // how close to the ground "down" lands it, in metres
         private static Character _speedOf;
         private static float _nextSave;
@@ -185,6 +186,39 @@ namespace Beastkeeper
             return p.y - ground;
         }
 
+        // how deep the water is at p: the sea's level over the ground (or a dock, a floor) under it; 0 on dry land
+        internal static float WaterDepth(Vector3 p)
+        {
+            if (ZoneSystem.instance == null) return 0f;
+            float ground = ZoneSystem.instance.GetGroundHeight(p);
+            RaycastHit hit;
+            int mask = LayerMask.GetMask("terrain", "Default", "static_solid", "piece");
+            Vector3 from = new Vector3(p.x, Mathf.Max(p.y, ZoneSystem.instance.m_waterLevel) + 2f, p.z);
+            if (Physics.Raycast(from, Vector3.down, out hit, 400f, mask, QueryTriggerInteraction.Ignore))
+                ground = Mathf.Max(ground, hit.point.y);
+            return Mathf.Max(0f, ZoneSystem.instance.m_waterLevel - ground);
+        }
+
+        // A drake doesn't go out over deep water, flying or on foot (the sea is the serpent's): it stops at the shore.
+        // Should it be over the sea anyway (mounted there, pushed out), it can't land, rest or attack there (it would
+        // sink, and its rider with it) and only flies back towards shallower water.
+        internal static bool OverSea(Character c) { return c != null && WaterDepth(c.transform.position) > DeepWater; }
+
+        // walking that way leads into deep water (a step that gets shallower is fine)
+        private static bool SeaAhead(Character c, Vector3 dir) { return SeaAhead(c, dir, 2f); }
+
+        private static bool SeaAhead(Character c, Vector3 dir, float reach)
+        {
+            Vector3 p = c.transform.position;
+            float here = WaterDepth(p);
+            dir.y = 0f;
+            if (dir.sqrMagnitude < 0.01f) return here > DeepWater;
+            float ahead = WaterDepth(p + dir.normalized * reach);
+            return ahead > DeepWater && ahead >= here - 0.05f;
+        }
+
+        private static bool _wasSea;
+
         private static bool Typing()
         {
             return Console.IsVisible() || Chat.instance != null && Chat.instance.HasFocus() || TextInput.IsVisible() || Menu.IsVisible();
@@ -198,6 +232,8 @@ namespace Beastkeeper
             bool crouch = keys && (ZInput.GetButton("Crouch") || ZInput.GetButton("JoyCrouch"));
             if (jump) up += 1f;
             if (crouch) up -= 1f;
+
+            Vector3 wish = Quaternion.LookRotation(fwd) * new Vector3(move.x, 0f, move.z);
 
             // landed: it walks where you steer (the walk loop is DrakeWalk's), rests, and takes off again when you jump
             if (_onFoot)
@@ -216,6 +252,7 @@ namespace Beastkeeper
                     if (local.sqrMagnitude > 1f) local.Normalize();
                     local.x *= SideShare;
                     Vector3 onFoot = Quaternion.LookRotation(fwd) * local;
+                    if (SeaAhead(c, onFoot)) { onFoot = Vector3.zero; Say("Your drake won't go into deep water: it senses sea serpents watching from below."); }
                     c.SetLookDir(fwd, 0f);
                     c.SetMoveDir(onFoot);
                     c.SetRun(false);
@@ -230,8 +267,16 @@ namespace Beastkeeper
 
             float alt = Altitude(c);
             bool high = alt > LowAltitude;
+            bool sea = OverSea(c);
+            if (sea != _wasSea)
+            {
+                _wasSea = sea;
+                if (sea) Say("Sea serpents are watching from below: your drake turns back to the shore.");
+            }
+            if (sea && alt < LandAt + 1f) up = Mathf.Max(up, 0.5f);   // it keeps clear of the waves
+            if (sea && crouch && alt < LandAt + 1.5f) Say("Your drake can't land on deep water: fly to the shore.");
             // down, close to the ground: it lands
-            if (alt < LandAt && crouch)
+            if (alt < LandAt && crouch && !sea)
             {
                 _onFoot = true;
                 c.Land();
@@ -243,7 +288,8 @@ namespace Beastkeeper
             // and only fills on the ground. Empty: the drake comes down by itself, lands, and flies again once the bar is full.
             _air = Mathf.Max(0f, _air - dt);
             if (_air <= 0f && !_tired) { _tired = true; Say("Your drake is tired: it comes down to rest."); }
-            if (_tired)
+            if (_tired && sea) Say("Your drake is tired: fly to land so it can rest.");
+            else if (_tired)
             {
                 up = -0.6f;
                 if (alt < LandAt + 0.3f)
@@ -260,6 +306,12 @@ namespace Beastkeeper
 
             Vector3 flat = Quaternion.LookRotation(fwd) * new Vector3(move.x, 0f, move.z);
             if (flat.sqrMagnitude > 1f) flat.Normalize();
+            // it stops at the shore: no flying on towards deep water (looking further ahead the faster it goes)
+            if (flat.sqrMagnitude > 0.01f && SeaAhead(c, flat, Mathf.Max(3f, c.GetVelocity().magnitude * 0.8f)))
+            {
+                flat = Vector3.zero;
+                Say("Your drake won't fly out over deep water: it senses sea serpents watching from below.");
+            }
             Vector3 dir = flat + Vector3.up * up * ClimbShare;
             c.SetLookDir(fwd, 0f);
             c.SetMoveDir(dir);

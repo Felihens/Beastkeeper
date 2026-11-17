@@ -13,6 +13,11 @@ namespace Beastkeeper
         private static Material[] _earth;
         private static Mesh _cube;
         private Vector3 _vel, _spin;
+
+        // the rock's look, for the stone spike (StoneSpike.cs)
+        internal static Mesh RockMesh { get { return _rockMesh; } }
+        internal static Material RockMat { get { return _rockMat; } }
+        internal static float RockSpan { get { return _rockSpan; } }
         private float _born, _life;
 
         // remember what the rock looks like, from the first one thrown

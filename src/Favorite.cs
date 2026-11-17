@@ -74,7 +74,7 @@ namespace Beastkeeper
                 return c != null && Localization.instance != null ? Localization.instance.Localize(c.m_name) : Prefab;
             }
 
-            private static string Clean(string s) { return (s ?? "").Replace("|", ""); }
+            private static string Clean(string s) { return (s ?? "").Replace("|", "").Replace("\n", "").Replace("\r", ""); }
         }
 
         private static string WorldKey(string what)
@@ -487,7 +487,8 @@ namespace Beastkeeper
             z.Set(CopyGenKey, gen);
             z.Set(CopyByKey, p.GetPlayerID());
             z.Set(LastSaddleKey, t.Saddle);   // it comes back without a saddle (unless it was stored), but stays a favorite
-            if (keepSaddle && t.Saddle > 0) z.Set(Mount.SaddleKey, t.Saddle);
+            int wears = SaddleOn(t);
+            if (keepSaddle && wears > 0) z.Set(Mount.SaddleKey, wears);
             z.Set(FavOwnerKey, p.GetPlayerID());
             z.Set(FavOwnerNameKey, p.GetPlayerName());
             if (t.Halter) z.Set(Halter.Key, 1);
@@ -514,7 +515,8 @@ namespace Beastkeeper
                 Halter = Halter.Wears(c),
                 TamedName = z != null ? z.GetString(ZDOVars.s_tamedName, "") : "",
                 OurName = z != null ? z.GetString(OurNameKey, "") : "",
-                Look = LookOf(z) + ",hp=" + Mathf.Clamp(c.GetHealth() / Mathf.Max(1f, c.GetMaxHealth()), 0.01f, 1f).ToString("0.###", System.Globalization.CultureInfo.InvariantCulture),
+                Look = LookOf(z) + ",hp=" + Mathf.Clamp(c.GetHealth() / Mathf.Max(1f, c.GetMaxHealth()), 0.01f, 1f).ToString("0.###", System.Globalization.CultureInfo.InvariantCulture)
+                    + ",sd=" + Mount.SaddleTier(c),   // the saddle it wears right now (Saddle may be one it wore before)
             };
         }
 
@@ -557,6 +559,18 @@ namespace Beastkeeper
                 else if (k == "s" && float.TryParse(v, System.Globalization.NumberStyles.Float, inv, out f)) z.Set(Breed.SatKey, f);
                 else if (k == "v" && float.TryParse(v, System.Globalization.NumberStyles.Float, inv, out f)) z.Set(Breed.ValKey, f);
             }
+        }
+
+        // the saddle it wore when it was stored ("sd=" in Look); older saves only know Saddle
+        private static int SaddleOn(Template t)
+        {
+            if (t.Look != null)
+                foreach (string part in t.Look.Split(','))
+                {
+                    int n;
+                    if (part.StartsWith("sd=") && int.TryParse(part.Substring(3), out n)) return Mathf.Clamp(n, 0, Tiers.Saddles);
+                }
+            return t.Saddle;
         }
 
         // the animal stops being yours alone: others may choose it (only when this player's mark is on it)
@@ -602,6 +616,7 @@ namespace Beastkeeper
         }
 
         internal static int ReviveCost { get { return ReviveFood; } }
+        internal static float StoreRangeShown { get { return StoreRange; } }
 
         // put the favorite away: it leaves the world, its bags spill on the ground, and it waits in the totem
         internal static void StoreAt(Player p, Totem totem)
@@ -650,6 +665,150 @@ namespace Beastkeeper
             Spawn(p, t, prefab, at, Quaternion.LookRotation(Flat(p.transform.position - at)), gen, true);
             p.Message(MessageHud.MessageType.Center, t.Name() + " comes out of the Beast Totem.");
             Effects.Shake(0.4f);
+        }
+
+        // ------------------------------------------------------------ the stable: other tamed animals carried with you
+
+        // Any tamed animal near a totem that isn't another player's favorite can be stored too: it leaves the world
+        // (bags spill first) and is written down on your character, up to StableMax, for this world. Any totem gives
+        // it back, only to you. Your favorite keeps its own place above.
+        internal const int StableMax = 10;
+
+        private static System.Collections.Generic.List<Template> StableList(Player p)
+        {
+            System.Collections.Generic.List<Template> list = new System.Collections.Generic.List<Template>();
+            string v;
+            if (p == null || !p.m_customData.TryGetValue(WorldKey("stable"), out v) || string.IsNullOrEmpty(v)) return list;
+            foreach (string line in v.Split('\n'))
+            {
+                Template t = Template.Load(line);
+                if (t != null) list.Add(t);
+            }
+            return list;
+        }
+
+        private static void SaveStable(Player p, System.Collections.Generic.List<Template> list)
+        {
+            if (list.Count == 0) { p.m_customData.Remove(WorldKey("stable")); return; }
+            string[] lines = new string[list.Count];
+            for (int i = 0; i < list.Count; i++) lines[i] = list[i].Save();
+            p.m_customData[WorldKey("stable")] = string.Join("\n", lines);
+        }
+
+        // what the window lists: name and a short line about each stored animal
+        internal static string[] StableNames(Player p, out string[] details)
+        {
+            System.Collections.Generic.List<Template> list = StableList(p);
+            string[] names = new string[list.Count];
+            details = new string[list.Count];
+            for (int i = 0; i < list.Count; i++) { names[i] = list[i].Name(); details[i] = Detail(list[i]); }
+            return names;
+        }
+
+        private static string Detail(Template t)
+        {
+            System.Collections.Generic.List<string> d = new System.Collections.Generic.List<string>();
+            GameObject g = ZNetScene.instance != null ? ZNetScene.instance.GetPrefab(t.Prefab) : null;
+            Character pc = g != null ? g.GetComponent<Character>() : null;
+            string kind = pc != null && Localization.instance != null ? Localization.instance.Localize(pc.m_name) : t.Prefab;
+            if (kind != t.Name()) d.Add(kind);
+            if (t.Level > 1) d.Add((t.Level - 1) + (t.Level == 2 ? " star" : " stars"));
+            if (SaddleOn(t) > 0) d.Add("saddled");
+            if (t.Halter) d.Add("wears a halter");
+            return string.Join(", ", d.ToArray());
+        }
+
+        // why this animal can't go in (null: it can)
+        private static string StableRefusal(Player p, Character c, Totem totem)
+        {
+            if (c == null || c.IsPlayer() || c.IsDead() || !c.IsTamed() || Sea.IsSeaMount(c)) return "It can't be stored.";
+            if (Vector3.Distance(c.transform.position, totem.transform.position) > StoreRange) return c.GetHoverName() + " has to be near the totem.";
+            ZDO z = Zdo(c);
+            if (z == null) return "It can't be stored.";
+            Template fav = Get(p);
+            if (fav != null && z.GetLong(IdKey, 0L) == fav.Id) return c.GetHoverName() + " is your favorite: store it above.";
+            long owner = z.GetLong(FavOwnerKey, 0L);
+            if (owner != 0L && owner != p.GetPlayerID()) return c.GetHoverName() + " is another player's favorite mount.";
+            long rider = Mount.RiderOf(c);
+            if (Mount.IsRidden(c) || (rider != 0L && Leash.FindPlayer(rider) != null)) return "Someone is riding " + c.GetHoverName() + ".";
+            return null;
+        }
+
+        // the tamed animals by this totem that can go in (your favorite is left out: it has its own place)
+        internal static System.Collections.Generic.List<Character> StableCandidates(Player p, Totem totem)
+        {
+            System.Collections.Generic.List<Character> list = new System.Collections.Generic.List<Character>();
+            Vector3 at = totem.transform.position;
+            foreach (Character c in Character.GetAllCharacters())
+                if (c != null && !c.IsPlayer() && c.IsTamed() && StableRefusal(p, c, totem) == null) list.Add(c);
+            list.Sort((a, b) => Vector3.Distance(a.transform.position, at).CompareTo(Vector3.Distance(b.transform.position, at)));
+            return list;
+        }
+
+        internal static string AnimalDetail(Character c)
+        {
+            string kind = Localization.instance != null ? Localization.instance.Localize(c.m_name) : c.m_name;
+            System.Collections.Generic.List<string> d = new System.Collections.Generic.List<string>();
+            if (kind != c.GetHoverName()) d.Add(kind);
+            if (c.GetLevel() > 1) d.Add((c.GetLevel() - 1) + (c.GetLevel() == 2 ? " star" : " stars"));
+            if (Mount.SaddleTier(c) > 0) d.Add("saddled");
+            if (Halter.Wears(c)) d.Add("wears a halter");
+            return string.Join(", ", d.ToArray());
+        }
+
+        internal static void StoreInStable(Player p, Totem totem, Character c)
+        {
+            string why = StableRefusal(p, c, totem);
+            if (why != null) { p.Message(MessageHud.MessageType.Center, why); return; }
+            System.Collections.Generic.List<Template> list = StableList(p);
+            if (list.Count >= StableMax) { p.Message(MessageHud.MessageType.Center, "You already carry " + StableMax + " animals in the totems: take one out first."); return; }
+            ZNetView nv = Leash.View(c);
+            if (nv == null || !nv.IsValid()) return;
+            if (!nv.IsOwner()) nv.ClaimOwnership();
+            string name = c.GetHoverName();
+            Template t = Capture(c, 0L);
+            list.Add(t);
+            SaveStable(p, list);
+            Bags.SpillNow(c);
+            Tie.Untie(c);
+            Plugin.Debug("[stable] stored " + t.Save() + " (" + list.Count + "/" + StableMax + ")");
+            ZNetScene.instance.Destroy(c.gameObject);
+            Effects.Shake(0.4f);
+            p.Message(MessageHud.MessageType.Center, name + " rests inside the Beast Totem.");
+        }
+
+        internal static void TakeOutOfStable(Player p, Totem totem, int index)
+        {
+            System.Collections.Generic.List<Template> list = StableList(p);
+            if (index < 0 || index >= list.Count) return;
+            Template t = list[index];
+            GameObject prefab = ZNetScene.instance != null ? ZNetScene.instance.GetPrefab(t.Prefab) : null;
+            if (prefab == null || prefab.GetComponent<Character>() == null)
+            {
+                p.Message(MessageHud.MessageType.Center, t.Prefab + " doesn't exist in this game.");
+                return;
+            }
+            Vector3 at = SpotNear(totem.transform.position, Flat(p.transform.position - totem.transform.position));
+            GameObject go = UnityEngine.Object.Instantiate(prefab, at, Quaternion.LookRotation(Flat(p.transform.position - at)));
+            Character c = go.GetComponent<Character>();
+            ZNetView nv = Leash.View(c);
+            if (c == null || nv == null || !nv.IsValid()) { p.Message(MessageHud.MessageType.Center, t.Name() + " couldn't come out."); return; }
+            list.RemoveAt(index);
+            SaveStable(p, list);
+            ZDO z = nv.GetZDO();
+            if (t.Level > 1) c.SetLevel(t.Level);
+            if (t.Saddle > 0) z.Set(LastSaddleKey, t.Saddle);
+            int wears = SaddleOn(t);
+            if (wears > 0) z.Set(Mount.SaddleKey, wears);
+            if (t.Halter) z.Set(Halter.Key, 1);
+            if (!string.IsNullOrEmpty(t.TamedName)) z.Set(ZDOVars.s_tamedName, t.TamedName);
+            if (!string.IsNullOrEmpty(t.OurName)) z.Set(OurNameKey, t.OurName);
+            SetLook(z, t.Look);
+            c.SetTamed(true);
+            if (t.Halter) Home.Set(c, at);
+            Plugin.Debug("[stable] took out " + t.Save() + " (" + list.Count + "/" + StableMax + " left)");
+            Effects.Shake(0.4f);
+            p.Message(MessageHud.MessageType.Center, t.Name() + " comes out of the Beast Totem.");
         }
 
         // ------------------------------------------------------------ finding it

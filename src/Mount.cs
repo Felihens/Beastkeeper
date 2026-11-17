@@ -32,6 +32,7 @@ namespace Beastkeeper
         internal Transform Seat { get { return _seat; } }
         private Vector3 _move, _look;
         private bool _run;
+        private bool _autoSprint;               // the run toggle while autorun is on (the game drops its own when no key is held)
         private bool _autoRun, _autoPrev;       // autorun is a toggle: the game only tells us the key press
         private float _seaSpeed;                // a serpent's real speed, metres per second (negative = backing)
         private Vector3 _heading;               // last direction you steered, kept while it slows down
@@ -113,10 +114,12 @@ namespace Beastkeeper
             // the game moves them with the body. Only your seat's facing is kept level with the animal.
             bool land = !Sea.IsSeaMount(_c);
             if (seat && land) _seat.rotation = transform.rotation;
+            // Lox, asksvin, moose: you sit on the game's own seat in the game's own riding pose, nothing of ours moves you
+            if (seat && _gameSeat != null) { _seat.position = _gameSeat.position; _seat.rotation = _gameSeat.rotation; }
             // what the rider editor posed for this walk or run: the saddle, the seat and the rider's bones, frame by frame
             RiderMotion.Frame f = land ? Motion() : null;
-            if (_look3d != null && land) MoveSaddle(f);
-            if (seat && land) { MoveSeat(f); RiderPose(f); }
+            if (_look3d != null && land && !_gameSaddle) MoveSaddle(f);   // the game's saddle moves with the bones already
+            if (seat && land && _gameSeat == null) { MoveSeat(f); RiderPose(f); }
         }
 
         // ---------------------------------------------------------------- the saddle and rider following the walk
@@ -336,6 +339,8 @@ namespace Beastkeeper
         internal string Pose()
         {
             if (Sea.IsSeaMount(_c)) return DefaultPose;
+            Sadle gs = GameSadle();
+            if (gs != null) return gs.m_attachAnimation;
             string pose = SeatText(4);
             return pose.StartsWith("attach_") ? pose : DefaultPose;
         }
@@ -440,16 +445,91 @@ namespace Beastkeeper
             else _othersRide = false;
             bool want = Plugin.Enabled.Value && _c != null && _nv != null && _nv.IsValid() && Saddled(_c) && !Sea.IsSeaMount(_c);
             if (want && _look3d != null && _lookTier != SaddleTier(_c)) { Destroy(_look3d); _look3d = null; }
+            if (want && _look3d != null && _gameSaddle && GameSaddleOn() != _gameSaddleWasOn) { Destroy(_look3d); _look3d = null; }   // the game's own saddle went on or off
             if (want && _look3d == null) { _lookTier = SaddleTier(_c); _look3d = MakeSaddle(); }
             else if (!want && _look3d != null) { Destroy(_look3d); _look3d = null; }
         }
 
         private void OnDestroy() { if (_look3d != null) Destroy(_look3d); }
 
+        // ---- the game's own mounts (lox, asksvin, moose) wear the game's own saddle (user, 2026-11-16)
+        // Only the look changes: the saddle is still ours (its tier, E to ride, bags, seat, taking it off). Their
+        // model already carries their saddle, hidden, fitted and bound to their bones; this is a copy of it with
+        // nothing but the picture (no game scripts, no colliders), so it bends with the body like the game's.
+        // If the game's own saddle is put on as well, that one shows and the copy is left out.
+        private static readonly string[] GameMounts = { "Lox", "Asksvin", "Moose" };
+        private bool _gameSaddle, _gameSaddleWasOn;
+
+        private Transform _gameSeat;   // while riding a lox, asksvin or moose: the game's own seat
+
+        // the game's own riding of this animal (its saddle's seat and pose), for the lox, asksvin and moose only
+        private Sadle GameSadle()
+        {
+            if (!IsGameMount()) return null;
+            Tameable t = _c.GetComponent<Tameable>();
+            return t != null && t.m_saddle != null && t.m_saddle.m_attachPoint != null && !string.IsNullOrEmpty(t.m_saddle.m_attachAnimation) ? t.m_saddle : null;
+        }
+
+        private bool IsGameMount()
+        {
+            string k = Kind(gameObject);
+            foreach (string m in GameMounts) if (string.Equals(k, m, System.StringComparison.OrdinalIgnoreCase)) return true;
+            return false;
+        }
+
+        private bool GameSaddleOn()
+        {
+            Tameable t = _c != null ? _c.GetComponent<Tameable>() : null;
+            ZNetView nv = Leash.View(_c);
+            return t != null && t.m_saddle != null && nv != null && nv.IsValid() && nv.GetZDO().GetBool(ZDOVars.s_haveSaddleHash, false);   // the game's own mark
+        }
+
+        private GameObject GameSaddleLook()
+        {
+            Tameable t = _c.GetComponent<Tameable>();
+            if (t == null || t.m_saddle == null) return null;
+            _gameSaddle = true;
+            _gameSaddleWasOn = GameSaddleOn();
+            Transform st = t.m_saddle.transform;
+            if (_gameSaddleWasOn)
+            {
+                Plugin.Debug("[ride] " + _c.name + " wears the game's own saddle too: that one shows");
+                GameObject none = new GameObject("Beastkeeper_SaddleLook");
+                none.transform.SetParent(transform, false);
+                return none;
+            }
+            // copy it where nothing wakes up, strip everything but the picture, then put it where the original is
+            GameObject tmp = new GameObject("Beastkeeper_SaddleTmp");
+            tmp.SetActive(false);
+            GameObject g = Instantiate(st.gameObject, tmp.transform, false);
+            g.name = "Beastkeeper_SaddleLook";
+            for (int pass = 0; pass < 3; pass++)   // scripts that others depend on go on a later pass
+                foreach (MonoBehaviour mb in g.GetComponentsInChildren<MonoBehaviour>(true)) if (mb != null) DestroyImmediate(mb);
+            foreach (Collider col in g.GetComponentsInChildren<Collider>(true)) DestroyImmediate(col);
+            foreach (Rigidbody rb in g.GetComponentsInChildren<Rigidbody>(true)) DestroyImmediate(rb);
+            g.transform.SetParent(st.parent, false);
+            g.transform.localPosition = st.localPosition;
+            g.transform.localRotation = st.localRotation;
+            g.transform.localScale = st.localScale;
+            Destroy(tmp);
+            g.SetActive(true);
+            int n = 0;
+            foreach (Renderer r in g.GetComponentsInChildren<Renderer>(true)) { r.enabled = true; n++; }
+            if (n == 0) { Destroy(g); _gameSaddle = false; return null; }
+            Plugin.Debug("[ride] saddle shown on " + _c.name + ": the game's own " + st.name + " (" + n + " parts)");
+            return g;
+        }
+
         // the game's own saddle model (asksvin's, else the lox's), sized to this animal's back
         private GameObject MakeSaddle()
         {
             if (ObjectDB.instance == null) return null;
+            _gameSaddle = false;
+            if (IsGameMount())
+            {
+                GameObject own = GameSaddleLook();
+                if (own != null) return own;
+            }
             GameObject holder = new GameObject("Beastkeeper_SaddleLook");
             holder.transform.SetParent(transform, false);
             string from = null;
@@ -733,6 +813,20 @@ namespace Beastkeeper
             Vector3 back = -cam.forward;
             float dist = CamDistance != null ? (float)CamDistance.GetValue(__instance) : 4f;
             dist = Mathf.Max(dist, 0.5f);
+            // aiming from a drake (right mouse button): the view slides over the right shoulder and comes closer
+            bool aimingDrake = Drake.Aiming && Drake.Is(m._c);
+            _shoulder = Mathf.MoveTowards(_shoulder, aimingDrake ? 1f : 0f, Time.deltaTime * ShoulderSpeed);
+            if (_shoulder > 0f)
+            {
+                float k = Mathf.SmoothStep(0f, 1f, _shoulder);
+                Vector3 side = Vector3.ProjectOnPlane(cam.right, Vector3.up).normalized * ShoulderSide * k + Vector3.up * ShoulderUp * k;
+                RaycastHit sideHit;
+                float len = side.magnitude;
+                if (len > 0.01f && Physics.SphereCast(pivot, Mathf.Max(0.05f, __instance.m_raycastWidth), side / len, out sideHit, len, __instance.m_blockCameraMask, QueryTriggerInteraction.Ignore))
+                    side = side / len * Mathf.Max(0f, sideHit.distance - 0.1f);
+                pivot += side;
+                dist = Mathf.Lerp(dist, Mathf.Max(1.5f, dist * ShoulderDistance), k);
+            }
             RaycastHit hit;
             if (Physics.SphereCast(pivot, Mathf.Max(0.05f, __instance.m_raycastWidth), back, out hit, dist, __instance.m_blockCameraMask, QueryTriggerInteraction.Ignore))
                 dist = Mathf.Max(0.3f, hit.distance - 0.1f);
@@ -772,6 +866,8 @@ namespace Beastkeeper
         }
 
         private static bool _camSet, _camWorldSet;
+        private static float _shoulder;
+        private const float ShoulderSide = 1.4f, ShoulderUp = 0.35f, ShoulderDistance = 0.6f, ShoulderSpeed = 4f;
         private static Vector3 _camLocal, _camWorld, _camVel;
         private static float _camY, _camRoll;
 
@@ -960,12 +1056,23 @@ namespace Beastkeeper
             _speed = 0f;
             _seaSpeed = 0f;
             _autoRun = false;
+            _autoSprint = false;
             Riding = this;
             if (Sea.IsSeaMount(_c)) Sea.OnRide(_c);
             if (Drake.Is(_c)) Drake.OnRide(_c);
             ResetFall(p, p.transform.position.y);
             p.StartDoodadControl(this);
-            p.AttachStart(_seat, _c.gameObject, true, false, false, Pose(), Vector3.up * 0.5f, null);
+            Sadle game = GameSadle();
+            _gameSeat = game != null ? game.m_attachPoint : null;
+            if (game != null)
+            {
+                // the game's seat (it moves with the body even while the game's saddle is hidden) and its pose
+                _seat.position = _gameSeat.position;
+                _seat.rotation = _gameSeat.rotation;
+                p.AttachStart(_gameSeat, _c.gameObject, true, false, false, game.m_attachAnimation, game.m_detachOffset, null);
+                Plugin.Debug("[ride] " + _c.name + ": the game's own seat and pose (" + game.m_attachAnimation + ")");
+            }
+            else p.AttachStart(_seat, _c.gameObject, true, false, false, Pose(), Vector3.up * 0.5f, null);
             p.Message(MessageHud.MessageType.Center, "Riding " + _c.GetHoverName() + (Sea.IsSeaMount(_c) ? ". Crouch to get off." : Drake.Is(_c) ? ". Jump climbs, crouch goes down. E to get off near the ground." : ". E to get off."));
             Plugin.Debug("[ride] on " + _c.name + ", seat at " + _seat.localPosition.ToString("0.00") + ", speeds: walk " + _c.m_walkSpeed.ToString("0.0")
                 + ", jog " + _c.m_speed.ToString("0.0") + ", run " + _c.m_runSpeed.ToString("0.0") + ", swim " + _c.m_swimSpeed.ToString("0.0") + " m/s");
@@ -975,6 +1082,7 @@ namespace Beastkeeper
         public void OnUseStop(Player player)
         {
             if (Riding == this) Riding = null;
+            _gameSeat = null;
             if (_nv != null && _nv.IsValid() && _nv.IsOwner() && _nv.GetZDO().GetLong(RiderKey, 0L) == player.GetPlayerID())
                 _nv.GetZDO().Set(RiderKey, 0L);
             if (player.IsAttached()) player.AttachStop();
@@ -1052,12 +1160,22 @@ namespace Beastkeeper
 
         public void ApplyControlls(Vector3 moveDir, Vector3 lookDir, bool run, bool autoRun, bool block)
         {
-            if (autoRun && !_autoPrev) _autoRun = !_autoRun;
+            if (autoRun && !_autoPrev) { _autoRun = !_autoRun; _autoSprint = _autoRun && run; }   // running when autorun starts keeps it running
             _autoPrev = autoRun;
             if (moveDir.z < -0.1f) _autoRun = false;          // S cancels it
             if (_autoRun && moveDir.z < 0.1f) moveDir.z = 1f; // A/D still steer while it runs on
-            // the game drops "run" when no movement key is held (it doesn't know about our autorun), so read the key itself
-            if (_autoRun && !run) run = ZInput.GetButton("Run") || ZInput.GetButton("JoyRun");
+            // the game drops "run" when no movement key is held (it doesn't know about our autorun), so read the key itself:
+            // with the game's "toggle run" setting a press switches running on and off, else running lasts while it is held
+            if (_autoRun)
+            {
+                if (PlayerPrefs.GetInt("ToggleRun", 0) == 1)
+                {
+                    if (ZInput.GetButtonDown("Run") || ZInput.GetButtonDown("JoyRun")) _autoSprint = !_autoSprint;
+                    run = _autoSprint;
+                }
+                else if (!run) run = ZInput.GetButton("Run") || ZInput.GetButton("JoyRun");
+            }
+            else _autoSprint = false;
             _move = moveDir;
             _look = lookDir;
             // autorun walks (or cruises, on a serpent); the run key makes it run, autorun or not

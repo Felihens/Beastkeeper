@@ -5,7 +5,8 @@ namespace Beastkeeper
 {
     // The Beast Totem window (E on the totem), in the same look as the Recipe Book's: a dark window in the middle of
     // the screen, the mouse free, Esc closes. It shows your favorite mount and lets you store it in the totem
-    // (it waits there, out of the world) or take it out again, at this or any other totem. Only your favorite fits.
+    // (it waits there, out of the world) or take it out again, at this or any other totem. Below it, up to 10 other
+    // tamed animals can be stored and taken out the same way (they stay with you, see Favorite's stable).
     [HarmonyPatch]
     internal static class TotemWindow
     {
@@ -14,6 +15,9 @@ namespace Beastkeeper
         private static int _state;
         private static string _name = "", _detail = "";
         private static float _nextCheck;
+        private static string[] _stored = new string[0], _storedDetail = new string[0];
+        private static System.Collections.Generic.List<Character> _near = new System.Collections.Generic.List<Character>();
+        private static Vector2 _scroll;
         private const float CloseDistance = 7f;
 
         internal static void Show(Totem t)
@@ -71,8 +75,8 @@ namespace Beastkeeper
 
         // ---- drawing
 
-        private static GUIStyle _bg, _title, _text, _small, _button, _buttonOff, _close;
-        private const float W = 520f, H = 330f;
+        private static GUIStyle _bg, _title, _section, _text, _small, _button, _buttonOff, _rowButton, _rowButtonOff, _close;
+        private const float W = 560f, H = 720f;
 
         private static Texture2D Tex(Color c)
         {
@@ -95,6 +99,9 @@ namespace Beastkeeper
                 hover = { background = Tex(new Color(1f, 0.82f, 0.45f, 0.95f)), textColor = Color.black } };
             _buttonOff = new GUIStyle(_button) { normal = { background = Tex(new Color(0.25f, 0.23f, 0.2f, 0.9f)), textColor = new Color(0.6f, 0.58f, 0.52f) },
                 hover = { background = Tex(new Color(0.25f, 0.23f, 0.2f, 0.9f)), textColor = new Color(0.6f, 0.58f, 0.52f) } };
+            _section = new GUIStyle(_text) { fontSize = 17, fontStyle = FontStyle.Bold, normal = { textColor = new Color(1f, 0.82f, 0.45f) } };
+            _rowButton = new GUIStyle(_button) { fontSize = 15 };
+            _rowButtonOff = new GUIStyle(_buttonOff) { fontSize = 15 };
             _close = new GUIStyle(GUI.skin.button) { fontSize = 15, normal = { background = Tex(new Color(0f, 0f, 0f, 0.5f)), textColor = new Color(0.85f, 0.83f, 0.78f) } };
         }
 
@@ -103,10 +110,12 @@ namespace Beastkeeper
             if (!Open) return;
             Player p = Player.m_localPlayer;
             if (p == null || p.IsDead() || _totem == null || Vector3.Distance(p.transform.position, _totem.transform.position) > CloseDistance) { Close(); return; }
-            if (Time.time >= _nextCheck)
+            if (Event.current.type == EventType.Layout && Time.time >= _nextCheck)   // same rows in Layout and Repaint
             {
                 _nextCheck = Time.time + 0.4f;
                 _state = Favorite.WindowState(p, _totem, out _name, out _detail);
+                _stored = Favorite.StableNames(p, out _storedDetail);
+                _near = Favorite.StableCandidates(p, _totem);
             }
             Styles();
             float s = Screen.height / 1080f;
@@ -123,56 +132,97 @@ namespace Beastkeeper
             GUILayout.FlexibleSpace();
             if (GUILayout.Button("X", _close, GUILayout.Width(32))) Close();
             GUILayout.EndHorizontal();
-            GUILayout.Space(8);
+            GUILayout.Space(6);
 
+            Favorites(p);
+
+            GUILayout.Space(12);
+            GUILayout.Label("Other animals (" + _stored.Length + "/" + Favorite.StableMax + " stored)", _section);
+            GUILayout.Label("Any tamed animal within " + (int)Favorite.StoreRangeShown + " m of the totem can rest inside it, unless it is another player's favorite. They stay with you: take them out at any totem. Saddle bags are emptied on the ground first.", _small);
+            GUILayout.Space(4);
+            _scroll = GUILayout.BeginScrollView(_scroll, false, true);
+            if (_stored.Length > 0)
+            {
+                GUILayout.Label("Stored", _text);
+                for (int i = 0; i < _stored.Length; i++)
+                {
+                    GUILayout.BeginHorizontal();
+                    Row(_stored[i], _storedDetail[i]);
+                    if (GUILayout.Button("Take out", _rowButton, GUILayout.Width(110), GUILayout.Height(30))) { Favorite.TakeOutOfStable(p, _totem, i); _nextCheck = 0f; }
+                    GUILayout.EndHorizontal();
+                }
+                GUILayout.Space(8);
+            }
+            GUILayout.Label("By the totem", _text);
+            if (_near.Count == 0) GUILayout.Label("No tamed animal nearby that can be stored.", _small);
+            bool full = _stored.Length >= Favorite.StableMax;
+            foreach (Character c in _near)
+            {
+                if (c == null) continue;
+                GUILayout.BeginHorizontal();
+                Row(c.GetHoverName(), Favorite.AnimalDetail(c));
+                if (full) GUILayout.Button("Full", _rowButtonOff, GUILayout.Width(110), GUILayout.Height(30));
+                else if (GUILayout.Button("Store", _rowButton, GUILayout.Width(110), GUILayout.Height(30))) { Favorite.StoreInStable(p, _totem, c); _nextCheck = 0f; }
+                GUILayout.EndHorizontal();
+            }
+            GUILayout.EndScrollView();
+            GUILayout.EndArea();
+            GUI.matrix = old;
+        }
+
+        private static void Row(string name, string detail)
+        {
+            GUILayout.BeginVertical();
+            GUILayout.Label(name, _text);
+            if (detail.Length > 0) GUILayout.Label(detail, _small);
+            GUILayout.EndVertical();
+            GUILayout.FlexibleSpace();
+        }
+
+        private static void Favorites(Player p)
+        {
             string key = Plugin.CallKey.Value.MainKey == KeyCode.None ? "the favorite key" : Plugin.CallKey.Value.ToString();
             switch (_state)
             {
                 case 0:
                     GUILayout.Label("You have no favorite mount yet.", _text);
-                    GUILayout.Space(6);
-                    GUILayout.Label("Look at a saddled animal and press " + key + " to choose it. Only your favorite fits in a totem; each animal can be the favorite of one player only.", _small);
+                    GUILayout.Label("Look at a saddled animal and press " + key + " to choose it. Each animal can be the favorite of one player only.", _small);
                     break;
                 case 1:
                     Header();
                     GUILayout.Label("It rests inside this totem, out of the world.", _text);
-                    GUILayout.Space(14);
-                    if (GUILayout.Button("Take " + _name + " out", _button, GUILayout.Height(44))) { Favorite.TakeOutAt(p, _totem); _nextCheck = 0f; }
-                    GUILayout.Space(6);
+                    GUILayout.Space(8);
+                    if (GUILayout.Button("Take " + _name + " out", _button, GUILayout.Height(40))) { Favorite.TakeOutAt(p, _totem); _nextCheck = 0f; }
                     GUILayout.Label("It comes out beside this totem, with its saddle. Any totem can give it back.", _small);
                     break;
                 case 2:
                     Header();
                     GUILayout.Label("It is here by the totem.", _text);
-                    GUILayout.Space(14);
-                    if (GUILayout.Button("Store " + _name + " in the totem", _button, GUILayout.Height(44))) { Favorite.StoreAt(p, _totem); _nextCheck = 0f; }
-                    GUILayout.Space(6);
+                    GUILayout.Space(8);
+                    if (GUILayout.Button("Store " + _name + " in the totem", _button, GUILayout.Height(40))) { Favorite.StoreAt(p, _totem); _nextCheck = 0f; }
                     GUILayout.Label("It leaves the world until you take it out, here or at any other totem. Its saddle bags are emptied on the ground first.", _small);
                     break;
                 case 3:
                     Header();
                     GUILayout.Label("It is somewhere else. Bring it close to this totem (" + key + " calls it to you) to store it.", _text);
-                    GUILayout.Space(14);
-                    GUILayout.Button("Store " + _name + " in the totem", _buttonOff, GUILayout.Height(44));
+                    GUILayout.Space(8);
+                    GUILayout.Button("Store " + _name + " in the totem", _buttonOff, GUILayout.Height(40));
                     break;
                 default:
                     Header();
                     GUILayout.Label("It can't be found: it is gone.", _text);
-                    GUILayout.Space(14);
-                    if (GUILayout.Button("Bring " + _name + " back (" + Favorite.ReviveCost + " food)", _button, GUILayout.Height(44))) { Favorite.Revive(p, _totem); _nextCheck = 0f; }
-                    GUILayout.Space(6);
+                    GUILayout.Space(8);
+                    if (GUILayout.Button("Bring " + _name + " back (" + Favorite.ReviveCost + " food)", _button, GUILayout.Height(40))) { Favorite.Revive(p, _totem); _nextCheck = 0f; }
                     GUILayout.Label("It comes back tamed, with its stars and name, but without a saddle. Food in your bag or in chests nearby pays for it.", _small);
                     break;
             }
-            GUILayout.EndArea();
-            GUI.matrix = old;
         }
 
         private static void Header()
         {
-            GUILayout.Label("Your favorite: " + _name, _text);
+            GUILayout.Label("Your favorite: " + _name, _section);
             if (_detail.Length > 0) GUILayout.Label(_detail, _small);
-            GUILayout.Space(4);
+            GUILayout.Space(2);
         }
     }
 }
