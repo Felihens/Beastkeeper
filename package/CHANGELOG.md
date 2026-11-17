@@ -1,5 +1,33 @@
 # Changelog
 
+## 0.8.0
+- Drakes lay eggs: two grown tamed drakes near a straw rug lay an egg on it every 3 game days. The egg waits standing on the rug, one per pair until someone takes it, and none while 6 or more grown drakes are within 100 m. Looking at the rug shows how the nest is doing.
+- Drakes botam ovos: dois drakes adultos domados perto de um tapete de palha botam um ovo nele a cada 3 dias do jogo. O ovo espera em pé no tapete, um por casal até alguém pegar, e nenhum enquanto houver 6 ou mais drakes adultos num raio de 100 m. Olhar para o tapete mostra como está o ninho.
+- A laid egg takes after its parents (more stars, more glow), and Moder's altar refuses it ("This egg is not worthy.").
+- Um ovo botado puxa aos pais (mais estrelas, mais brilho), e o altar da Moder o recusa ("This egg is not worthy.").
+- Hatched drakes drop one of the item their egg was woken with and no trophy; only frost drakes drop freeze glands.
+- Drakes chocados soltam um do item que acordou o ovo deles e nenhum troféu; só drakes de gelo soltam glândulas de gelo.
+- Eggs: looking at one says "Make an offering"; what to offer is for you to find out, or for Hugin to hint. Time away counts while the fire could still burn.
+- Ovos: olhar para um diz "Make an offering"; o que oferecer é para você descobrir, ou para o Hugin dar a dica. O tempo longe conta enquanto a fogueira ainda podia queimar.
+- Hugin, the game's raven, gives a short tip the first time you meet the lasso, a totem, a sleeping egg and a grown drake (only while the raven's tips are on). Console: bk_raven <tip>.
+- Hugin, o corvo do jogo, dá uma dica curta na primeira vez que você encontra o laço, um totem, um ovo adormecido e um drake adulto (só com as dicas do corvo ligadas). Console: bk_raven <dica>.
+- Beast Totem window: tabs by kind, filters by stars and glow, your favorite marked in gold in the list, Rename on every name, a "?" page of tips, and E closes it. Up to 10 animals of each kind rest in the totems.
+- Janela do Totem das Feras: abas por tipo, filtros por estrelas e brilho, a sua favorita destacada em dourado na lista, Rename em todo nome, uma página "?" de dicas, e E fecha a janela. Até 10 animais de cada tipo descansam nos totens.
+- Bringing your favorite back at a totem costs trophies of its kind: 3, or 5 from wolves on (no trophy: 5 food). Choosing another favorite while yours rests in a totem moves the old one to the totem's other animals.
+- Trazer a favorita de volta num totem custa troféus da espécie dela: 3, ou 5 a partir do lobo (sem troféu: 5 comidas). Escolher outra favorita com a sua guardada num totem passa a antiga para os outros animais do totem.
+- Orders wheel (hold Q): Stay, Follow or Attack for your favorite mount. Stay is dropped when the animal is lassoed or far from its spot.
+- Roda de ordens (segure Q): Stay, Follow ou Attack para a sua montaria favorita. Stay cai quando o animal é laçado ou fica longe do ponto dele.
+- Portals: your mount and the animals on your lasso go through with you, and you ride on at the other side.
+- Portais: a sua montaria e os animais no seu laço passam com você, e você continua montado do outro lado.
+- Riding: no getting on over your weight limit; with the hammer out E and Q don't get you off or open the wheel; the middle mouse button does nothing.
+- Montaria: não dá para montar acima do limite de peso; com o martelo na mão E e Q não te desmontam nem abrem a roda; o botão do meio do mouse não faz nada.
+- Drake Saddle: a drake trophy instead of dragon tears. The game's own lox, asksvin and moose saddles can't be made or put on any more.
+- Sela de Drake: um troféu de drake no lugar das lágrimas de dragão. As selas do próprio jogo para lox, asksvin e alce não podem mais ser feitas nem colocadas.
+- Drake attacks: each element has its own cooldown; the stone spike's smaller stones stay closer to it.
+- Ataques do drake: cada elemento tem a sua própria espera; as pedras menores do espinho de pedra ficam mais perto dele.
+- Windows no longer lose their background after a while.
+- As janelas não perdem mais o fundo depois de um tempo.
+
 ## 0.7.0
 - Frost drake: a beam of ice for 1 s that goes exactly where you aim, instead of the ice ball. The aim turns slowly while it lasts, the screen shakes a little, and its damage grows the longer it stays on one enemy. The blizzard starts small and grows while the beam keeps hitting.
 - Drake de gelo: um raio de gelo de 1 s que vai exatamente onde você mira, no lugar da bola de gelo. A mira gira devagar enquanto ele dura, a tela treme um pouco, e o dano cresce quanto mais tempo ele fica num inimigo. A nevasca começa pequena e cresce enquanto o raio continua acertando.

@@ -45,16 +45,19 @@ namespace Beastkeeper
             return el >= Frost && el <= Lightning ? el : Frost;
         }
 
-        internal static void MakeBaby(Character baby, ZNetView nv, int el, Vector3 home)
+        internal static void MakeBaby(Character baby, ZNetView nv, int el, Vector3 home, ItemDrop.ItemData egg)
         {
             ZDO z = nv.GetZDO();
             z.Set(ElementKey, el);
             z.Set(BornKey, Breed.Now());
-            if (Random.value < Plugin.DrakeGlowChance.Value) z.Set(GlowKey, 1);
+            // an egg laid by drakes takes after its parents: their stars put together raise the chance of stars, and each
+            // glowing parent adds the glow chance once more (user, 2026-11-17). An egg from the world: 10% 2 stars, 35% 1 star
+            int s1, s2, glowing;
+            if (!DrakeBreed.Parents(egg, out s1, out s2, out glowing)) { s1 = s2 = glowing = 0; }
+            if (Random.value < DrakeBreed.GlowChance(glowing)) z.Set(GlowKey, 1);
             z.Set(Halter.Key, 1);
-            // 10% hatch with 2 stars, 35% with 1 star (fixed: not a setting)
-            float roll = Random.value;
-            int level = roll < 0.10f ? 3 : roll < 0.45f ? 2 : 1;
+            int level = DrakeBreed.RollLevel(s1, s2);
+            if (DrakeBreed.Laid(egg)) Plugin.Debug("[nest] hatched from laid egg: parents " + s1 + "+" + s2 + " stars, " + glowing + " glowing -> level " + level);
             if (level > 1) baby.SetLevel(level);
             baby.SetTamed(true);
             Home.Set(baby, home);

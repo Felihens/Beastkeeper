@@ -8,7 +8,7 @@ namespace Beastkeeper
 {
     // The drake as a flying mount (agreed with the user, 2026-11-11):
     // - wild drakes can't be caught: tamed ones hatch from Moder's eggs (DrakeEgg.cs), as babies that grow up;
-    // - it only takes the Drake Saddle, made with Moder's dragon tears, so flying starts after Moder;
+    // - it only takes the Drake Saddle, made with a drake trophy; flying starts after Moder anyway (eggs only hatch once she is dead);
     // - a tamed drake grows bigger, so a viking fits on its back;
     // - ridden it always flies: W/A/S/D steer, jump held climbs, crouch held goes down;
     // - flying high tires it: a flight bar empties in FlightSeconds and refills near the ground; empty, it
@@ -230,6 +230,13 @@ namespace Beastkeeper
             float up = 0f;
             bool jump = keys && (ZInput.GetButton("Jump") || ZInput.GetButton("JoyJump"));
             bool crouch = keys && (ZInput.GetButton("Crouch") || ZInput.GetButton("JoyCrouch"));
+            bool heavy = Mount.TooHeavy();
+            if (heavy)
+            {
+                if (jump || move.sqrMagnitude > 0.01f) Say("You carry too much: your drake won't " + (_onFoot ? "walk or fly." : "fly on: it comes down."));
+                jump = false;
+                if (_onFoot || !OverSea(c)) move = Vector3.zero;   // over the sea it may still go back to the shore
+            }
             if (jump) up += 1f;
             if (crouch) up -= 1f;
 
@@ -297,6 +304,17 @@ namespace Beastkeeper
                     _onFoot = true;
                     c.Land();
                     Say("Your drake lands to rest. It flies again once its bar is full.");
+                    return;
+                }
+            }
+            if (heavy && !sea)
+            {
+                up = -0.6f;
+                if (alt < LandAt + 0.3f)
+                {
+                    _onFoot = true;
+                    c.Land();
+                    Say("Your drake lands: you carry too much to fly.");
                     return;
                 }
             }

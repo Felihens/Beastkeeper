@@ -95,9 +95,12 @@ namespace Beastkeeper
         {
             me = Player.m_localPlayer;
             float away = Plugin.FavoriteFollow.Value;
-            if (me == null || me.IsDead() || away <= 0f || c == null || !Favorite.IsFavorite(c)) return false;
+            if (me == null || me.IsDead() || c == null) return false;
+            int order = Orders.Of(c);
+            if (!Favorite.IsFavorite(c) && order != Orders.Follow && order != Orders.Attack) return false;   // another animal: only when ordered
             if (Mount.IsRidden(c) || Tie.IsTied(c)) return false;
-            if (Totem.Nearest(me.transform.position, away) != null) return false;
+            if (order == Orders.Stay) return false;
+            if (order == Orders.None && (away <= 0f || Totem.Nearest(me.transform.position, away) != null)) return false;   // ordered to follow: near a totem too
             return Flat(c.transform.position, me.transform.position) < 150f;   // left far behind: it stays where it is
         }
 
@@ -143,6 +146,7 @@ namespace Beastkeeper
                 if (tied && Tie.Loose(c)) return true;   // hit: it does what it would do, and comes back after
             }
             MonsterAI mai = ai as MonsterAI;
+            if (!tied && Orders.Fight(ai, c)) return true;   // Attack order: the game fights the enemy it was given
             if (Defend.Active(ai, c, tied ? (Vector3?)Tie.Anchor(c) : null))
             {
                 // an enemy near: the game's own fighting takes over (a tied one still can't go past its rope)
@@ -160,6 +164,16 @@ namespace Beastkeeper
                 Leash.Calm(ai);
                 result = true;
                 if (Flat(c.transform.position, back) > 3f) Leash.MoveTo(ai, dt, back, true); else ai.StopMoving();
+                return false;
+            }
+            Vector3 stay;
+            if (!tied && Orders.StayAt(c, out stay))
+            {
+                // Stay order: it stands where you told it to
+                Leash.Calm(ai);
+                result = true;
+                if (mai != null && mai.GetFollowTarget() != null) mai.SetFollowTarget(null);
+                Orders.Hold(ai, c, stay, dt);
                 return false;
             }
             Player me;

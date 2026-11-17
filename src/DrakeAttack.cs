@@ -1,3 +1,4 @@
+using BepInEx.Configuration;
 using System.Collections.Generic;
 using HarmonyLib;
 using UnityEngine;
@@ -266,10 +267,12 @@ namespace Beastkeeper
             return any;
         }
 
-        // every element waits AttackCooldown (the frost blizzard has a wait of its own, see Blizzard)
+        // each element its own wait (user, 2026-11-17), counted from the end of the attack
         internal static float CooldownOf(int el)
         {
-            return Mathf.Max(0.2f, Plugin.DrakeAttackCooldown.Value);
+            ConfigEntry<float> e = el == Frost ? Plugin.FrostCooldown : el == Fire ? Plugin.FireCooldown : el == Poison ? Plugin.PoisonCooldown
+                : el == Earth ? Plugin.EarthCooldown : Plugin.LightningCooldown;
+            return Mathf.Max(0.2f, e.Value);
         }
 
         // the game's own moment for the shot (the attack's animation event): shoot ours instead
@@ -314,7 +317,7 @@ namespace Beastkeeper
                 Slow(null, false);
                 Hurry(null, false);
                 _pending = null; _burstLeft = 0;
-                _nextShot = Time.time + Mathf.Max(0.2f, Plugin.DrakeAttackCooldown.Value);   // cut short: the wait starts now
+                _nextShot = Time.time + (c != null ? CooldownOf(ElementOf(c)) : 1.5f);   // cut short: the wait starts now
                 return;
             }
             int el = ElementOf(c);
@@ -332,9 +335,8 @@ namespace Beastkeeper
             {
                 Slow(null, false);
                 _pending = null;
-                // a stream's wait starts with the stream, so fire and poison attack as often as the single shots
-                float from = IsStream(el) || UsesBeam(el) ? _burstEnd - BurstSeconds(el) : Time.time;
-                _nextShot = Mathf.Max(Time.time, from + CooldownOf(el)) + _saved;
+                // the wait starts when the attack is over (the stream or beam ended, the animation done)
+                _nextShot = Time.time + CooldownOf(el) + _saved;
                 _saved = 0f;
             }
         }

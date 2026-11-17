@@ -34,14 +34,16 @@ namespace Beastkeeper
             private readonly Character _c;
             internal Box(Character c) { _c = c; }
             public string GetText() { return Name(_c); }
-            public void SetText(string text)
-            {
-                ZNetView nv = Leash.View(_c);
-                if (nv == null || !nv.IsValid()) return;
-                if (!nv.IsOwner()) nv.ClaimOwnership();
-                nv.GetZDO().Set(NameKey, (text ?? "").Trim());
-                Plugin.Debug("[rename] " + _c.name + " is now " + text);
-            }
+            public void SetText(string text) { Set(_c, text); }
+        }
+
+        internal static void Set(Character c, string text)
+        {
+            ZNetView nv = Leash.View(c);
+            if (nv == null || !nv.IsValid()) return;
+            if (!nv.IsOwner()) nv.ClaimOwnership();
+            nv.GetZDO().Set(NameKey, (text ?? "").Trim());
+            Plugin.Debug("[rename] " + c.name + " is now " + text);
         }
 
         [HarmonyPatch(typeof(Character), "GetHoverName"), HarmonyPostfix]

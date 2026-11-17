@@ -91,6 +91,7 @@ namespace Beastkeeper
         private static Character FoeFor(Character c, Vector3 aim, int el, Shot s)
         {
             if (el == Lightning) return AimFoe(c, aim, Plugin.DrakeLightningRange.Value + 5f, AimHelpDegrees, AimHelpNear);
+            if (el == Earth) return AimFoe(c, aim, SpikeReach + 5f, AimHelpDegrees, AimHelpNear);   // the spike finds it like the lightning
             if ((el == Frost || el == Fire) && s != null) return AimFoe(c, aim, Reach(s, el), AssistDegrees, AssistNear);
             return null;
         }
@@ -264,6 +265,8 @@ namespace Beastkeeper
         {
             float k = ChargeNow();
             Vector3 at, normal;
+            Character foe = FoeFor(c, aim, Earth, null);
+            if (foe != null) { aim = foe.transform.position; MarkFoe(foe); }
             if (!SpikeSpot(c, aim, out at, out normal)) return;
             Vector3 center = at + Vector3.up * Lift;
             Circle(center, SpikeArea(k), false);

@@ -12,7 +12,8 @@ namespace Beastkeeper
         private static void Add()
         {
             new Terminal.ConsoleCommand("bk_element", "[frost|fire|poison|earth|lightning] [glow|noglow] - changes the drake you are riding (Beastkeeper)", new Terminal.ConsoleEvent(Change), true);
-            new Terminal.ConsoleCommand("bk_drake", "[frost|fire|poison|earth|lightning] [glow] - a tamed grown drake (Beastkeeper)", new Terminal.ConsoleEvent(Run), true);
+            new Terminal.ConsoleCommand("bk_tame", "[range=15] - tames every creature near you, any kind (Beastkeeper, for testing)", new Terminal.ConsoleEvent(Tame), true);
+            new Terminal.ConsoleCommand("bk_drake", "[frost|fire|poison|earth|lightning] [glow] [stars 0-2] - a tamed grown drake (Beastkeeper)", new Terminal.ConsoleEvent(Run), true);
         }
 
         private static int Element(string want)
@@ -33,6 +34,26 @@ namespace Beastkeeper
             args.Context.AddString("It is a " + Drake.ElementName(el) + " drake now. (A glow shows after getting off and on, or a moment later.)");
         }
 
+        // the game's own "tame" leaves out what it can't tame itself; this one tames any creature in range (not players)
+        private static void Tame(Terminal.ConsoleEventArgs args)
+        {
+            Player p = Player.m_localPlayer;
+            if (p == null) return;
+            float range = 15f;
+            if (args.Length > 1) float.TryParse(args[1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out range);
+            int n = 0;
+            foreach (Character c in Character.GetAllCharacters())
+            {
+                if (c == null || c.IsPlayer() || c.IsDead() || c.IsTamed() || Vector3.Distance(c.transform.position, p.transform.position) > range) continue;
+                ZNetView nv = Leash.View(c);
+                if (nv == null || !nv.IsValid()) continue;
+                if (!nv.IsOwner()) nv.ClaimOwnership();
+                c.SetTamed(true);
+                n++;
+            }
+            args.Context.AddString(n + " creature(s) tamed within " + range + " m.");
+        }
+
         private static void Run(Terminal.ConsoleEventArgs args)
         {
             Player p = Player.m_localPlayer;
@@ -49,12 +70,19 @@ namespace Beastkeeper
             if (c == null || nv == null || !nv.IsValid()) return;
             ZDO z = nv.GetZDO();
             z.Set(Drake.ElementKey, el);
-            if (args.Length > 2 && args[2].ToLowerInvariant() == "glow") z.Set(Drake.GlowKey, 1);
+            int stars = 0;
+            for (int i = 2; i < args.Length; i++)
+            {
+                string w = args[i].ToLowerInvariant();
+                if (w == "glow") z.Set(Drake.GlowKey, 1);
+                else { int n; if (int.TryParse(w, out n)) stars = Mathf.Clamp(n, 0, 2); }
+            }
+            if (stars > 0) c.SetLevel(stars + 1);
             z.Set(Halter.Key, 1);
             c.SetTamed(true);
             Home.Set(c, at);
             Drake.KeepSize(c);
-            args.Context.AddString("A grown " + Drake.ElementName(el) + " drake.");
+            args.Context.AddString("A grown " + Drake.ElementName(el) + " drake" + (stars > 0 ? " with " + stars + " star(s)" : "") + ".");
         }
     }
 }

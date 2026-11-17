@@ -43,7 +43,7 @@ namespace Beastkeeper
 
         internal static bool IsSaddle(ItemDrop.ItemData item) { return Set.Is(item); }
 
-        private static readonly string[] Leather = { "", "deer hide", "troll hide", "wolf hide", "lox hide and linen", "carapace plates and red jute", "wolf fur, silver and dragon tears" };
+        private static readonly string[] Leather = { "", "deer hide", "troll hide", "wolf hide", "lox hide and linen", "carapace plates and red jute", "wolf fur, silver and a drake trophy" };
 
         internal static void Init()
         {
@@ -415,8 +415,44 @@ namespace Beastkeeper
             return false;
         }
 
+        // Someone else riding (2026-11-16: a friend on his drake was seen 'walking in the air'): on our game their
+        // body follows the seat, but their riding pose didn't come with it, so their legs kept walking. The pose is
+        // put on their body here, every frame, before their animation runs; taken off when they get down.
+        private Player _otherRider;
+        private string _otherPose;
+        private void OtherRiderPose()
+        {
+            Player rider = null;
+            if (_othersRide && Plugin.Enabled.Value)
+            {
+                rider = Leash.FindPlayer(_nv.GetZDO().GetLong(RiderKey, 0L));
+                if (rider == Player.m_localPlayer) rider = null;
+            }
+            if (_otherRider != null && _otherRider != rider) { SetPose(_otherRider, _otherPose, false); _otherRider = null; }
+            if (rider == null) return;
+            string pose = Pose();
+            if (_otherRider == null || pose != _otherPose)
+            {
+                if (_otherRider != null) SetPose(_otherRider, _otherPose, false);
+                Animator an = rider.GetComponentInChildren<Animator>();
+                Plugin.Debug("[ride] " + rider.GetPlayerName() + " rides " + _c.name + " here: their riding pose " + pose + (an != null && an.GetBool(pose) ? " had come with them" : " had NOT come with them: put on"));
+                _otherRider = rider;
+                _otherPose = pose;
+            }
+            SetPose(rider, pose, true);
+        }
+
+        private static void SetPose(Player p, string pose, bool on)
+        {
+            if (p == null || string.IsNullOrEmpty(pose)) return;
+            Animator an = p.GetComponentInChildren<Animator>();
+            if (an != null && an.GetBool(pose) != on) an.SetBool(pose, on);
+        }
+
+
         private void Update()
         {
+            if (_otherRider != null || _othersRide) OtherRiderPose();
             if (Time.time < _nextLook) return;
             _nextLook = Time.time + 0.5f;
             Drake.KeepSize(_c);
@@ -450,7 +486,7 @@ namespace Beastkeeper
             else if (!want && _look3d != null) { Destroy(_look3d); _look3d = null; }
         }
 
-        private void OnDestroy() { if (_look3d != null) Destroy(_look3d); }
+        private void OnDestroy() { if (_look3d != null) Destroy(_look3d); if (_otherRider != null) SetPose(_otherRider, _otherPose, false); }
 
         // ---- the game's own mounts (lox, asksvin, moose) wear the game's own saddle (user, 2026-11-16)
         // Only the look changes: the saddle is still ours (its tier, E to ride, bags, seat, taking it off). Their
@@ -458,6 +494,52 @@ namespace Beastkeeper
         // nothing but the picture (no game scripts, no colliders), so it bends with the body like the game's.
         // If the game's own saddle is put on as well, that one shows and the copy is left out.
         private static readonly string[] GameMounts = { "Lox", "Asksvin", "Moose" };
+
+        // The game's own saddles (lox, asksvin, moose...) (user, 2026-11-17): with ours they made two ways to ride the
+        // same animal. Every saddle the game's animals take (their Tameable's saddle item) has its recipe turned off,
+        // and putting one on is refused; ours already wear their look.
+        private static readonly HashSet<string> _gameSaddles = new HashSet<string>();
+
+        private static void FindGameSaddles()
+        {
+            if (ZNetScene.instance == null || ZNetScene.instance.m_prefabs == null) return;
+            foreach (GameObject g in ZNetScene.instance.m_prefabs)
+            {
+                Tameable t = g != null ? g.GetComponent<Tameable>() : null;
+                if (t != null && t.m_saddleItem != null && _gameSaddles.Add(t.m_saddleItem.gameObject.name))
+                    Plugin.Debug("[saddle] the game's " + t.m_saddleItem.gameObject.name + " (" + g.name + ") is replaced by Beastkeeper saddles");
+            }
+        }
+
+        private static void NoGameSaddleRecipes()
+        {
+            if (!Plugin.Enabled.Value || ObjectDB.instance == null || ObjectDB.instance.m_recipes == null) return;
+            FindGameSaddles();
+            foreach (Recipe r in ObjectDB.instance.m_recipes)
+                if (r != null && r.m_item != null && r.m_enabled && _gameSaddles.Contains(r.m_item.gameObject.name))
+                {
+                    r.m_enabled = false;
+                    Plugin.Debug("[saddle] the game's " + r.m_item.gameObject.name + " recipe is off");
+                }
+        }
+
+        [HarmonyPatch(typeof(ObjectDB), "Awake"), HarmonyPostfix]
+        private static void OnObjectDB() { NoGameSaddleRecipes(); }
+
+        [HarmonyPatch(typeof(ZNetScene), "Awake"), HarmonyPostfix]
+        private static void OnScene() { NoGameSaddleRecipes(); }
+
+        [HarmonyPatch(typeof(Tameable), "UseItem"), HarmonyPrefix]
+        private static bool NoGameSaddle(Tameable __instance, Humanoid user, ItemDrop.ItemData item, ref bool __result)
+        {
+            if (!Plugin.Enabled.Value || item == null) return true;
+            bool game = item.m_dropPrefab != null && _gameSaddles.Contains(item.m_dropPrefab.name);
+            if (!game && __instance.m_saddleItem != null) game = item.m_shared.m_name == __instance.m_saddleItem.m_itemData.m_shared.m_name && !IsSaddle(item);
+            if (!game) return true;
+            if (user != null) user.Message(MessageHud.MessageType.Center, "This animal takes a Beastkeeper saddle.");
+            __result = true;
+            return false;
+        }
         private bool _gameSaddle, _gameSaddleWasOn;
 
         private Transform _gameSeat;   // while riding a lox, asksvin or moose: the game's own seat
@@ -1050,6 +1132,7 @@ namespace Beastkeeper
             }
             PlaceSeat();
             _nv.GetZDO().Set(RiderKey, p.GetPlayerID());
+            Orders.Rode(_c);
             _move = Vector3.zero;
             _heading = Sea.IsSeaMount(_c) ? Sea.Facing(_c) : transform.forward;
             _heading.y = 0f;
@@ -1111,7 +1194,7 @@ namespace Beastkeeper
         private static System.Collections.IEnumerator LandAgain(Player p, Vector3 at)
         {
             yield return new WaitForFixedUpdate();
-            if (p != null && !p.IsAttached() && Vector3.Distance(p.transform.position, at) > 0.3f) Place(p, at);
+            if (p != null && !p.IsAttached() && !p.IsTeleporting() && Vector3.Distance(p.transform.position, at) > 0.3f) Place(p, at);
         }
 
         // the height a fall is counted from restarts where you stand now (it stays at an old value while you ride)
@@ -1180,6 +1263,14 @@ namespace Beastkeeper
             _look = lookDir;
             // autorun walks (or cruises, on a serpent); the run key makes it run, autorun or not
             _run = run;
+            if (TooHeavy() && _c != null && !Sea.IsSeaMount(_c) && !Drake.Is(_c))   // the drake handles it in its own Drive
+            {
+                if (_move.sqrMagnitude > 0.01f || _autoRun) SayHeavy("You carry too much: " + _c.GetHoverName() + " won't move.");
+                _move = Vector3.zero;
+                _run = false;
+                _autoRun = false;
+                _autoSprint = false;
+            }
         }
 
         public Component GetControlledComponent() { return _c; }
@@ -1439,10 +1530,61 @@ namespace Beastkeeper
                 return;
             }
             if (p.IsAttached() || p.GetDoodadController() != null) return;
+            if (p.IsEncumbered()) { p.Message(MessageHud.MessageType.Center, "You carry too much to ride " + c.GetHoverName() + "."); return; }
             m.Ride(p);
         }
 
+        // Over the weight limit (user, 2026-11-16): no getting on, and an animal you sit on doesn't walk (a drake doesn't
+        // take off, and comes down if it flies). The sea serpent still swims, so nobody is left stuck at sea.
+        internal static bool TooHeavy()
+        {
+            Player p = Player.m_localPlayer;
+            return p != null && p.IsEncumbered();
+        }
+
+        private static float _nextHeavySay;
+        private static void SayHeavy(string what)
+        {
+            Player p = Player.m_localPlayer;
+            if (p == null || Time.time < _nextHeavySay) return;
+            _nextHeavySay = Time.time + 4f;
+            p.Message(MessageHud.MessageType.Center, what);
+        }
+
+        // ---------------------------------------------------------------- through a portal
+
+        // You went into a portal riding: you get off, the animal goes to the other side with you, and once you are
+        // there you sit on it again (Portal.cs).
+        internal static Character LeaveForPortal(Player p)
+        {
+            Mount m = Riding;
+            if (m == null || m._c == null || Sea.IsSeaMount(m._c)) return null;
+            Character c = m._c;
+            p.StopDoodadControl();   // OnUseStop: off its back
+            if (Riding == m) m.OnUseStop(p);
+            return c;
+        }
+
+        internal static bool RideAgain(Player p, Character c)
+        {
+            Mount m = c != null ? c.GetComponent<Mount>() : null;
+            if (m == null || !m.IsValid() || Riding != null || p.IsAttached() || p.GetDoodadController() != null) return false;
+            m.Ride(p);
+            return Riding == m;
+        }
+
         // ---------------------------------------------------------------- keys while riding
+
+        // Building from the saddle (user, 2026-11-17): while the hammer (or any build tool) is out, E doesn't get you
+        // off; put the tool away first. Dying, a portal or a dying animal still let go (they don't come from E).
+        [HarmonyPatch(typeof(Player), "StopDoodadControl"), HarmonyPrefix, HarmonyPriority(Priority.High)]
+        private static bool StayOnWhileBuilding(Player __instance)
+        {
+            if (!Plugin.Enabled.Value || __instance != Player.m_localPlayer || __instance.IsDead() || __instance.IsTeleporting()) return true;
+            if (Riding == null || __instance.GetDoodadController() as Mount != Riding || !__instance.InPlaceMode()) return true;
+            if (!(ZInput.GetButtonDown("Use") || ZInput.GetButtonDown("JoyUse"))) return true;
+            return false;
+        }
 
         private static bool _wasCrouch, _wasAttack2, _wasAttack1;
 
@@ -1462,7 +1604,7 @@ namespace Beastkeeper
             else if (drake)
             {
                 // like a bow: the right button (block) aims, the left one shoots where you aim
-                Drake.Aiming = block || blockHold || secondaryAttackHold;
+                Drake.Aiming = block || blockHold;   // the middle button does nothing while riding (user, 2026-11-17)
                 bool a1 = attack || attackHold;
                 Drake.Trigger(m._c, __instance, a1, _wasAttack1);
                 _wasAttack1 = a1;
@@ -1471,8 +1613,8 @@ namespace Beastkeeper
             }
             else
             {
-                // left button: its normal attack; right button (and the middle one): its strong attack
-                bool a1 = attack || attackHold, a2 = secondaryAttack || secondaryAttackHold || block || blockHold;
+                // left button: its normal attack; right button: its strong attack; the middle one does nothing (user, 2026-11-17)
+                bool a1 = attack || attackHold, a2 = block || blockHold;
                 if (a1 && !_wasAttack1) Fight.Attack(m._c, false);
                 if (a2 && !_wasAttack2) Fight.Attack(m._c, true);
                 _wasAttack1 = a1;
@@ -1619,6 +1761,38 @@ namespace Beastkeeper
             Effects.Shake(0.8f);
             p.Message(MessageHud.MessageType.Center, name + " wears the " + saddle.m_shared.m_name + ". Press E to ride.");
             Plugin.Debug("[ride] saddled " + c.name + " with tier " + tier + " (height " + Height(c).ToString("0.00") + " m)");
+            Mount m = c.GetComponent<Mount>();
+            if (m != null) m.KeepSaddle(tier);
+        }
+
+        // Right after saddling, the game that ran the animal until now may still send it with its old data (no
+        // saddle) before it hears that the animal is ours: the saddle mark was lost and the saddle item gone (seen
+        // the first time a drake was saddled). For a few seconds the mark is checked and written again if it went.
+        private int _keepTier;
+        private const float KeepSeconds = 6f, KeepEvery = 0.5f;
+
+        internal void KeepSaddle(int tier)
+        {
+            _keepTier = tier;
+            StopCoroutine("Keeping");
+            StartCoroutine("Keeping");
+        }
+
+        private System.Collections.IEnumerator Keeping()
+        {
+            float until = Time.time + KeepSeconds;
+            while (Time.time < until)
+            {
+                yield return new WaitForSeconds(KeepEvery);
+                if (_keepTier == 0 || _nv == null || !_nv.IsValid()) yield break;   // taken off meanwhile
+                ZDO z = _nv.GetZDO();
+                if (z.GetInt(SaddleKey, 0) == _keepTier) continue;
+                if (!_nv.IsOwner()) _nv.ClaimOwnership();
+                z.Set(SaddleKey, _keepTier);
+                Favorite.MarkSaddled(_nv, _keepTier);
+                Plugin.Debug("[ride] the saddle on " + _c.name + " was lost right after saddling (another game still ran it): put back");
+            }
+            _keepTier = 0;
         }
 
         private static void TakeSaddleOff(Player p, Character c)
@@ -1629,6 +1803,8 @@ namespace Beastkeeper
             if (nv == null || !nv.IsValid() || tier == 0) return;
             if (RiderOf(c) != 0L && Leash.FindPlayer(RiderOf(c)) != null) { p.Message(MessageHud.MessageType.Center, "Someone is riding it."); return; }
             if (!Bags.Empty(c)) { p.Message(MessageHud.MessageType.Center, "Empty " + name + "'s saddle bags first."); return; }
+            Mount keep = c.GetComponent<Mount>();
+            if (keep != null) keep._keepTier = 0;
             if (!nv.IsOwner()) nv.ClaimOwnership();
             nv.GetZDO().Set(SaddleKey, 0);
             GameObject prefab = Set.Prefab(tier);

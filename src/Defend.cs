@@ -39,7 +39,7 @@ namespace Beastkeeper
         // instead of each tamed animal going through every creature in the world.
         private static readonly List<Character> _threats = new List<Character>();
         private static float _threatsAt = -99f;
-        private static List<Character> Threats()
+        internal static List<Character> Threats()
         {
             if (Time.time - _threatsAt < 0.5f) return _threats;
             _threatsAt = Time.time;
@@ -76,6 +76,7 @@ namespace Beastkeeper
             at = Vector3.zero;
             gameLed = false;
             if (post.HasValue) { at = post.Value; return true; }
+            if (Orders.StayAt(c, out at)) return true;   // told to stay: it fights around that spot
             Player holder = Leash.FindPlayer(Leash.Holder(Fast.AIView(ai)));
             if (holder != null) { at = holder.transform.position; return true; }
             Player me;
@@ -92,7 +93,7 @@ namespace Beastkeeper
         // away from the very enemy it should fight. When it is to fight, it is alerted and doesn't run.
         private static readonly System.Reflection.MethodInfo SetAlertedM = HarmonyLib.AccessTools.Method(typeof(BaseAI), "SetAlerted");
 
-        private static void Ready(BaseAI ai, Character c)
+        internal static void Ready(BaseAI ai, Character c)
         {
             MonsterAI mai = ai as MonsterAI;
             if (mai == null) return;

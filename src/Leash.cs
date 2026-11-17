@@ -206,6 +206,7 @@ namespace Beastkeeper
             nv.ClaimOwnership();
             ZDO zdo = nv.GetZDO();
             zdo.Set(Key, p.GetPlayerID());
+            Orders.DropStay(c, "caught with the lasso");   // it goes with you now: no going back to the old spot later
             Caught(c);
             Follow(c, p);
             Plugin.Debug("[leash] lassoed tamed " + c.GetHoverName() + " (" + c.name + ")");
@@ -308,7 +309,7 @@ namespace Beastkeeper
                 ZDO zdo = nv.GetZDO();
                 float dist = Vector3.Distance(c.transform.position, p.transform.position);
 
-                if (!Tug.Is(c) && !InGrace(c) && dist > Plugin.BreakDistance.Value + Slack(c))
+                if (!Tug.Is(c) && !InGrace(c) && !Portal.Quiet() && dist > Plugin.BreakDistance.Value + Slack(c))
                 {
                     Release(c, c.IsTamed());
                     Effects.Shake(2f);

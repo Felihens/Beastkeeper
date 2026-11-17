@@ -11,7 +11,7 @@ namespace Beastkeeper
     {
         public const string GUID = "felih.Beastkeeper";
         public const string NAME = "Beastkeeper";
-        public const string VERSION = "0.7.0";
+        public const string VERSION = "0.8.0";
 
         internal static ManualLogSource Log;
         internal static Plugin Instance;
@@ -40,13 +40,15 @@ namespace Beastkeeper
         internal static ConfigEntry<bool> TamedDefend;
         internal static ConfigEntry<string> TamedHealth, TamedDamage;
         internal static ConfigEntry<float> DefendRange, ChaseLimit, FavoriteFollow;
-        internal static ConfigEntry<KeyboardShortcut> CallKey;
+        internal static ConfigEntry<KeyboardShortcut> CallKey, OrderKey;
         internal static ConfigEntry<string> DrakeMounts;
         internal static ConfigEntry<float> DrakeSize, DrakeSpeed, DrakeSprintSpeed, DrakeFlightSeconds, DrakeRestSeconds, DrakeMaxAltitude;
         internal static ConfigEntry<bool> DrakeAttackInAir, DrakeEggNeedsFire, RiderMotionOn, DrakeSpareParty, DrakeEarthRicochet, DrakeEarthCrater, DrakeEarthRoll, DrakeAttackPreview;
-        internal static ConfigEntry<int> DrakeFrostShards;
+        internal static ConfigEntry<int> DrakeFrostShards, DrakeMaxNear;
+        internal static ConfigEntry<float> DrakeEggEveryDays;
         internal static ConfigEntry<float> DrakeFrostShardAngle, DrakeEarthChargeSeconds, DrakeEarthChargeMax;
-        internal static ConfigEntry<float> DrakeHatchMinutes, DrakeGrowMinutes, DrakeEggAlertRange, DrakeAttackDamage, DrakeFireMax, DrakeAttackSpeed, DrakeAttackCooldown, DrakeGlowChance;
+        internal static ConfigEntry<float> DrakeHatchMinutes, DrakeGrowMinutes, DrakeEggAlertRange, DrakeAttackDamage, DrakeFireMax, DrakeAttackSpeed, DrakeGlowChance;
+        internal static ConfigEntry<float> FrostCooldown, FireCooldown, PoisonCooldown, EarthCooldown, LightningCooldown;
         internal static ConfigEntry<string>[] DrakeColors;
         internal static ConfigEntry<float> DrakeWalkSeconds, DrakeGroundSpeed, DrakeFrostSize, DrakeAttackAirCost, DrakeLightningRange;
 
@@ -138,6 +140,8 @@ namespace Beastkeeper
                 new ConfigDescription("Your favorite mount follows you (about 3 m behind) while you are further than this from any Beast Totem; near one it stays at the totem (metres, 0 = off).", new AcceptableValueRange<float>(0f, 300f)));
             CallKey = Bind("10 - Favorite mount", "CallKey", new KeyboardShortcut(KeyCode.U),
                 "Looking at a tamed animal that has worn a saddle: makes it your favorite mount (press again to undo). Anywhere else: calls your favorite mount to your side, wherever it is. None = off.");
+            OrderKey = Bind("10 - Favorite mount", "OrderKey", new KeyboardShortcut(KeyCode.Q),
+                "Hold for the orders wheel of your favorite mount: move the mouse to Stay, Follow or Attack and let go of the key (in the middle: nothing). Stay: it stays there. Follow: it follows you everywhere, near a totem too. Attack: it follows you and fights what you fight, else the nearest enemy near you that is after someone. None = off.");
             DrakeMounts = Bind("11 - Drake", "Drakes", "Hatchling",
                 "Flying mounts (prefab names, separated by commas; the first is what Moder's eggs hatch into). Wild ones can't be caught: after Moder, take a dragon egg from a drake nest, give it an item and keep it by a fire. Only a Drake Saddle fits a grown one. Empty = off.");
             DrakeSize = Bind("11 - Drake", "Size", 1.8f,
@@ -195,6 +199,10 @@ namespace Beastkeeper
                 new ConfigDescription("How fast a drake walks under its rider after landing (metres per second). On the ground it never runs: this is its top speed.", new AcceptableValueRange<float>(1f, 15f)));
             DrakeGlowChance = Bind("11 - Drake", "GlowChance", 0.2f,
                 new ConfigDescription("Chance a drake hatches with eyes and horns that glow in its element's colour (0 = never, 1 = always).", new AcceptableValueRange<float>(0f, 1f)));
+            DrakeEggEveryDays = Bind("11 - Drake", "EggEveryDays", 3f,
+                new ConfigDescription("Two grown tamed drakes near a straw rug lay an egg on it every this many game days (a day is about 30 minutes). One egg waits per pair until someone takes it. 0 = drakes never lay eggs.", new AcceptableValueRange<float>(0f, 30f)));
+            DrakeMaxNear = Bind("11 - Drake", "MaxDrakesNearNest", 6,
+                new ConfigDescription("No eggs are laid while this many grown drakes or more are within 100 m of the straw rug (animals stored in the totem don't count).", new AcceptableValueRange<int>(2, 30)));
             DrakeAttackAirCost = Bind("11 - Drake", "AttackCost", 5f,
                 new ConfigDescription("Seconds of flight each ridden drake attack uses from its flight bar (the same for every saddle).", new AcceptableValueRange<float>(0f, 60f)));
             DrakeLightningRange = Bind("11 - Drake", "LightningRange", 40f,
@@ -215,8 +223,17 @@ namespace Beastkeeper
                 "On: while you aim from a drake (right mouse button), gold marks on the ground show where its attack lands: the lightning's damage and push circles, the rock's path and landing spot, the poison's spray. Frost and fire mark the enemy they go for.");
             DrakeEarthCrater = Bind("11 - Drake", "EarthCrater", true,
                 "On: where the rock lands it splashes earth and dust on the ground (only a visual, it fades after 5 seconds).");
-            DrakeAttackCooldown = Bind("11 - Drake", "AttackCooldown", 1.5f,
-                new ConfigDescription("Seconds between two ridden drake attacks.", new AcceptableValueRange<float>(0.2f, 10f)));
+            // each element its own wait, counted from the END of the attack (the beam or stream over, the animation done)
+            FrostCooldown = Bind("11 - Drake", "FrostCooldown", 2f,
+                new ConfigDescription("Seconds a frost drake waits after its frost beam ends before it can attack again.", new AcceptableValueRange<float>(0.2f, 10f)));
+            FireCooldown = Bind("11 - Drake", "FireCooldown", 2f,
+                new ConfigDescription("Seconds a fire drake waits after its stream of fire ends before it can attack again.", new AcceptableValueRange<float>(0.2f, 10f)));
+            PoisonCooldown = Bind("11 - Drake", "PoisonCooldown", 1.5f,
+                new ConfigDescription("Seconds a poison drake waits after its stream of poison ends before it can attack again.", new AcceptableValueRange<float>(0.2f, 10f)));
+            EarthCooldown = Bind("11 - Drake", "EarthCooldown", 2f,
+                new ConfigDescription("Seconds a stone drake waits after its attack ends (the spike is out) before it can attack again.", new AcceptableValueRange<float>(0.2f, 10f)));
+            LightningCooldown = Bind("11 - Drake", "LightningCooldown", 1.5f,
+                new ConfigDescription("Seconds a lightning drake waits after its attack ends before it can attack again.", new AcceptableValueRange<float>(0.2f, 10f)));
             RopeWidth = Bind("4 - Rope look", "RopeWidth", 0.05f, "Thickness of the rope (metres).");
             ShakeStrength = Bind("4 - Rope look", "ShakeStrength", 1f,
                 new ConfigDescription("Camera shake at key moments of a catch (multiplier, 0 = off).", new AcceptableValueRange<float>(0f, 3f)));
@@ -305,9 +322,11 @@ namespace Beastkeeper
         {
             if (!Enabled.Value) return;
             Leash.Update();
+            Portal.Update();
             Tug.Update();
             Mount.UpdatePress();
             Favorite.Update();
+            Orders.Update();
             Throw.Update();
             Show.Update();
             TotemRing.Update();
@@ -315,6 +334,8 @@ namespace Beastkeeper
             Drake.UpdateBar();
             Drake.Tick();
             Exporter.Update();
+            DrakeBreed.Update();
+            Tips.Update();
         }
 
         private void OnGUI()
@@ -323,6 +344,7 @@ namespace Beastkeeper
             Throw.OnGUI();
             TotemWindow.OnGUI();
             Tug.OnGUI();
+            Orders.OnGUI();
             Drake.DrawCharge();
             Drake.DrawBar();
             Drake.DrawCooldown();

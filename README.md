@@ -10,6 +10,8 @@
 
 Catch animals with a lasso, tame them with a halter, saddle them and ride them. Tie them up, keep them near home with a totem, heal them with food, breed hares in every colour, and hatch drakes from Moder's eggs to fly them.
 
+**Learning as you go.** Hugin, the game's raven, lands with a short tip the first time you meet a few key parts (a lasso in your bag, a totem nearby, a grown drake). Each tip comes once and stays in the compendium, under the raven's tab. If you turned the raven's tips off in the game's settings, he stays away. The console command `bk_raven <tip>` calls him back, and the **?** in the totem window opens a page of short tips on every part.
+
 ### Who installs it
 
 - **Every player who wants to use it, or to see it** (ropes, saddles, traps, hare colours). Players without it can still play with you.
@@ -45,13 +47,17 @@ Any lasso holds an animal that is already tamed, whatever its tier. The **Beast 
 - **Left-click** attacks and **right-click** does a strong attack (boar, wolf, bear, asksvin).
 - **Hold E** opens the saddle bags (deer and lox).
 - With the game's **Toggle run** option on, **Shift** switches running on and off while you ride. Items near the animal's feet are picked up as you ride by (the game's auto pickup).
-- The lox, asksvin and moose wear the game's own saddle for them, and you sit in the game's own riding pose. Everything else works the same.
+- The lox, asksvin and moose wear the game's own saddle for them, and you sit in the game's own riding pose. Everything else works the same. The game's own saddles (lox, asksvin, moose) can't be made or put on any more: Beastkeeper's saddles ride these animals.
 - **Shift + E** renames the animal. **Alt + E** takes the saddle off (on a controller: Shift + hold E). The bags must be empty first.
-- **U** on a tamed animal that wears (or once wore) a saddle makes it your **favorite mount** (U again undoes it). Press **U** anywhere else and it comes to your side, wherever it is in the world (on a dedicated server, Beastkeeper must be on the server too to find it far away). If it dies, it can only come back at a **Beast Totem**: look at the totem and press **U**, paying 5 food (what it eats, or food you eat), taken from your bag or chests within 30 m of the totem. It comes back tamed, with its stars and name, but without a saddle and with empty bags.
+- **U** on a tamed animal that wears (or once wore) a saddle makes it your **favorite mount** (U again undoes it). Press **U** anywhere else and it comes to your side, wherever it is in the world (on a dedicated server, Beastkeeper must be on the server too to find it far away). If it dies, it can only come back at a **Beast Totem**: look at the totem and press **U**, paying **trophies of its kind**: 3 for boar, deer and bear, 5 from wolves on (wolf, drake, lox, hare, asksvin); an animal without a trophy costs 5 food, taken from your bag or chests within 30 m of the totem. It comes back tamed, with its stars and name, but without a saddle and with empty bags.
+- **Hold Q** for the **orders wheel** of your favorite mount (else the animal you rode last): move the mouse to **Stay**, **Follow** or **Attack** and let go of Q. Stay keeps it where it is; Follow takes it everywhere, near a totem too; Attack makes it fight what you fight, else the nearest enemy that is after someone. A Stay order is dropped when the animal is lassoed or ends up more than 100 m from its spot.
+- **Portals:** ride into a portal and your animal goes through with you, and you are on its back on the other side. Animals on your lasso go through too.
+- Over your weight limit you can't get on, and the animal you ride stops (a flying drake comes down).
+- With the hammer out, E and Q don't get you off or open the wheel, so you can build from the saddle. The middle mouse button does nothing while riding.
 
 **Tie.** With the lasso, press E on a tree or a building piece to tie the animal on your rope there. It grazes within a few metres. If something hits it, it slips free, then comes back. E on a tied animal unties it.
 
-**Keep them home.** Build a Beast Totem. Its animals graze in an 8 m circle around it (shown while you place or look at the totem; nothing inside it stops you building) and those that wander off come back into it. Press **E** on a totem to **store** your favorite mount inside it (it must be close by) and **take it out** later at any totem, with its saddle, stars, name and health. Below it, up to **10 other tamed animals** within 25 m of the totem can rest inside it too (not another player's favorite); they stay with you, so you take them out at any totem. Saddle bags are emptied on the ground first.
+**Keep them home.** Build a Beast Totem. Its animals graze in an 8 m circle around it (shown while you place or look at the totem; nothing inside it stops you building) and those that wander off come back into it. Press **E** on a totem to **store** your favorite mount inside it (it must be close by) and **take it out** later at any totem, with its saddle, stars, name and health. Other tamed animals within 25 m of the totem can rest inside it too, up to **10 of each kind** (10 drakes, 10 wolves...; not another player's favorite, and your favorite doesn't count); they stay with you, so you take them out at any totem. Saddle bags are emptied on the ground first. The window is one list: your favorite first, marked in gold, then the animals in the totems and the ones by it. **Tabs** show all of them or one kind (with how many of that kind are stored), and filters show only 0, 1 or 2 stars or only the glowing ones. Every name has a Rename button, and a drake's element and "glows" are written on its line. Choosing another favorite while yours rests in a totem moves the old one to these other animals.
 
 **Heal.** Feed a tamed animal any food. It heals 25–40% of its health over 10 seconds (more for better food).
 
@@ -64,8 +70,14 @@ Any lasso holds an animal that is already tamed, whatever its tier. The **Beast 
 **Drakes.** Wild drakes can't be caught: tamed ones hatch from **Moder's eggs**, the dragon eggs in the drake nests of the Mountains, once Moder is dead.
 - Taking an egg from a nest makes the drakes around it come for you.
 - Lay the egg on the ground and give it an item. The item decides the drake's element: **Freeze Gland** or **Crystal** = frost, **Surtling Core** = fire, **Ooze** = poison, **Obsidian** = stone, **Thunderstone** = lightning. Each element has its own colours, and some drakes are born with glowing eyes and horns.
-- Keep the egg warm by a fire. It hatches after about 5 minutes into a tamed baby drake, which grows up in about 30 minutes.
-- A grown drake takes only the **Drake Saddle** (workbench 4: dragon tears, wolf pelts, silver, freeze glands).
+- Keep the egg warm by a fire. It hatches after about 5 minutes into a tamed baby drake, which grows up in about 30 minutes. The time away counts too: leave the fire well fed, and when you come back the egg has been warm for as long as that fire could burn.
+- A drake hatched from an egg also drops one of the item its egg was woken with when it dies (freeze gland, surtling core, ooze, obsidian or thunderstone); only frost drakes drop freeze glands.
+- Hatched drakes don't drop a trophy, so eggs can't be farmed for saddles.
+- **Drakes lay eggs.** Build a **straw rug** as a nest. Two grown tamed drakes near it lay an egg on it every **3 game days** (about an hour and a half). The egg waits standing on the rug. Each pair lays only one egg until someone takes it, so a server left running doesn't fill up with eggs. Nothing is laid while 6 or more grown drakes are within 100 m (drakes in the totem don't count).
+- A laid egg takes after its parents: parents with more stars give more stars, and each glowing parent makes a glowing baby more likely.
+- Laid eggs are **not worthy**: Moder's altar refuses them.
+- Look at a straw rug with tamed drakes around to see how the nest is doing: how many drakes are close, or how long until the next egg.
+- A grown drake takes only the **Drake Saddle** (workbench 4: a drake trophy, wolf pelts, silver, freeze glands).
 - Ridden, it flies: W/A/S/D steer, hold **Jump** to climb, hold **Crouch** to go down. The flight bar above your stamina (one section per 5 seconds) empties while it flies, and each attack costs one section. When it runs out the drake comes down and lands, and it flies again once the bar has filled on the ground. Feeding it fills the bar at once.
 - Fly down close to the ground and hold Crouch to **land**. On the ground it walks; Jump takes off again. You can only get off (E) when it's on the ground.
 - **Attack** like a bow: hold right-click to aim, left-click to shoot, flying low (up to about 4 m). Frost fires a beam of ice, stone raises a stone spike from the ground, fire and poison a stream (poison hurts at once and keeps hurting), lightning a bolt that strikes where it lands. Every element hits as hard; what matters is the enemy's weakness or resistance to that kind of damage. On the ground it takes off before it attacks.
@@ -93,6 +105,8 @@ Edit `BepInEx/config/felih.Beastkeeper.cfg` (or press F1 in game with Configurat
 *Freyr cavalgava o javali dourado Gullinbursti, e os bodes de Thor puxavam a carroça dele pelo céu. Em Valheim os deuses antigos estão longe, mas os bichos continuam aqui. Traga uma corda e um pouco de paciência.*
 
 Capture animais com um laço, dome com um cabresto, coloque sela e monte. Amarre, mantenha perto de casa com um totem, cure com comida, crie lebres de todas as cores e choque drakes dos ovos da Moder para voar neles.
+
+**Aprendendo no caminho.** Hugin, o corvo do jogo, aparece com uma dica curta na primeira vez que você encontra algumas partes-chave (um laço na bolsa, um totem por perto, um drake adulto). Cada dica vem uma vez e fica no compêndio, na aba do corvo. Se você desligou as dicas do corvo nas opções do jogo, ele não aparece. O comando de console `bk_raven <dica>` chama ele de novo, e o **?** na janela do totem abre uma página de dicas curtas sobre cada parte.
 
 ### Quem instala
 
@@ -129,13 +143,17 @@ Qualquer laço segura um animal já domado, de qualquer tier. O **Totem das Fera
 - **Botão esquerdo** ataca e **botão direito** dá um ataque forte (javali, lobo, urso, asksvin).
 - **Segurar E** abre os alforjes (cervo e lox).
 - Com a opção **Alternar corrida** do jogo ligada, **Shift** liga e desliga a corrida montado. Itens perto das patas do animal são pegos enquanto você passa (a coleta automática do jogo).
-- O lox, o asksvin e o alce usam a sela do próprio jogo para eles, e você senta na pose de montaria do próprio jogo. O resto funciona igual.
+- O lox, o asksvin e o alce usam a sela do próprio jogo para eles, e você senta na pose de montaria do próprio jogo. O resto funciona igual. As selas do próprio jogo (lox, asksvin, alce) não podem mais ser feitas nem colocadas: as selas do Beastkeeper montam esses animais.
 - **Shift + E** dá nome ao animal. **Alt + E** tira a sela (no controle: Shift + segurar E). Os alforjes precisam estar vazios.
-- **U** num animal domado que está (ou já esteve) de sela torna ele sua **montaria favorita** (U de novo desfaz). Aperte **U** em qualquer outro lugar e ela vem pro seu lado, onde quer que esteja no mundo (em servidor dedicado, o Beastkeeper precisa estar no servidor pra achar ela longe). Se ela morrer, só volta num **Totem dos Animais**: olhe pro totem e aperte **U**, pagando 5 comidas (o que ela come, ou comida sua), tiradas da mochila ou de baús a até 30 m do totem. Ela volta domada, com as estrelas e o nome, mas sem sela e com os alforjes vazios.
+- **U** num animal domado que está (ou já esteve) de sela torna ele sua **montaria favorita** (U de novo desfaz). Aperte **U** em qualquer outro lugar e ela vem pro seu lado, onde quer que esteja no mundo (em servidor dedicado, o Beastkeeper precisa estar no servidor pra achar ela longe). Se ela morrer, só volta num **Totem dos Animais**: olhe pro totem e aperte **U**, pagando **troféus da espécie dela**: 3 para javali, cervo e urso, 5 a partir do lobo (lobo, drake, lox, lebre, asksvin); um animal sem troféu custa 5 comidas, tirados da mochila ou de baús a até 30 m do totem. Ela volta domada, com as estrelas e o nome, mas sem sela e com os alforjes vazios.
+- **Segure Q** para a **roda de ordens** da sua montaria favorita (ou do último animal que você montou): mova o mouse até **Stay**, **Follow** ou **Attack** e solte o Q. Stay deixa ele onde está; Follow leva ele para todo lugar, perto de um totem também; Attack faz ele lutar contra o que você luta, ou contra o inimigo mais perto que está atrás de alguém. A ordem Stay cai quando o animal é laçado ou fica a mais de 100 m do ponto dele.
+- **Portais:** entre montado num portal e o seu animal passa junto, e você continua nas costas dele do outro lado. Animais no seu laço passam também.
+- Acima do seu limite de peso você não consegue montar, e o animal que você monta para (um drake voando desce).
+- Com o martelo na mão, E e Q não te desmontam nem abrem a roda, então dá para construir da sela. O botão do meio do mouse não faz nada montado.
 
 **Amarrar.** Com o laço, aperte E numa árvore ou numa peça construída para amarrar ali o animal que está na sua corda. Ele pasta a poucos metros. Se algo bater nele, ele se solta e depois volta. E num animal amarrado desamarra.
 
-**Manter em casa.** Construa um Totem das Feras. Os animais dele pastam num círculo de 8 m em volta (aparece quando você posiciona ou olha pro totem; nada dentro dele impede a construção) e os que se afastam voltam pra dentro. Aperte **E** num totem para **guardar** a sua montaria favorita dentro dele (ela precisa estar perto) e **tirar** depois em qualquer totem, com sela, estrelas, nome e vida. Abaixo dela, até **10 outros animais domados** a até 25 m do totem também podem descansar dentro dele (menos a favorita de outro jogador); eles ficam com você, então você tira em qualquer totem. Os alforjes são esvaziados no chão antes.
+**Manter em casa.** Construa um Totem das Feras. Os animais dele pastam num círculo de 8 m em volta (aparece quando você posiciona ou olha pro totem; nada dentro dele impede a construção) e os que se afastam voltam pra dentro. Aperte **E** num totem para **guardar** a sua montaria favorita dentro dele (ela precisa estar perto) e **tirar** depois em qualquer totem, com sela, estrelas, nome e vida. Outros animais domados a até 25 m do totem também podem descansar dentro dele, até **10 de cada tipo** (10 drakes, 10 lobos...; menos a favorita de outro jogador, e a sua favorita não conta); eles ficam com você, então você tira em qualquer totem. Os alforjes são esvaziados no chão antes. A janela é uma lista só: a sua favorita primeiro, destacada em dourado, depois os animais nos totens e os que estão perto dele. **Abas** mostram todos ou um tipo (com quantos daquele tipo estão guardados), e filtros mostram só 0, 1 ou 2 estrelas ou só os que brilham. Todo nome tem um botão Rename, e o elemento do drake e "glows" aparecem escritos na linha dele. Escolher outra favorita com a sua guardada no totem passa a antiga para esses outros animais.
 
 **Curar.** Dê qualquer comida a um animal domado. Ele recupera 25–40% da vida em 10 segundos (mais com comida melhor).
 
@@ -148,8 +166,14 @@ Qualquer laço segura um animal já domado, de qualquer tier. O **Totem das Fera
 **Drakes.** Drakes selvagens não podem ser capturados: os domados nascem dos **ovos da Moder**, os ovos de dragão nos ninhos de drake das Montanhas, depois que a Moder morre.
 - Pegar um ovo do ninho faz os drakes em volta virem atrás de você.
 - Coloque o ovo no chão e dê um item a ele. O item decide o elemento do drake: **Glândula de Gelo** ou **Cristal** = gelo, **Núcleo de Surtling** = fogo, **Gosma** = veneno, **Obsidiana** = pedra, **Pedra-trovão** = raio. Cada elemento tem suas cores, e alguns drakes nascem com olhos e chifres brilhando.
-- Mantenha o ovo quente perto de uma fogueira. Ele choca em uns 5 minutos num filhote de drake domado, que cresce em uns 30 minutos.
-- Um drake adulto só aceita a **Sela de Drake** (bancada 4: lágrimas de dragão, peles de lobo, prata, glândulas de gelo).
+- Mantenha o ovo quente perto de uma fogueira. Ele choca em uns 5 minutos num filhote de drake domado, que cresce em uns 30 minutos. O tempo longe também conta: deixe a fogueira bem abastecida, e quando você voltar o ovo terá ficado quente pelo tempo que aquela fogueira conseguia queimar.
+- Um drake chocado de ovo, ao morrer, também solta um do item que acordou o ovo dele (glândula de gelo, núcleo de surtling, gosma, obsidiana ou pedra-trovão); só os drakes de gelo soltam glândulas de gelo.
+- Drakes chocados não soltam troféu, então não dá para farmar ovos por selas.
+- **Drakes botam ovos.** Construa um **tapete de palha** como ninho. Dois drakes adultos domados perto dele botam um ovo nele a cada **3 dias do jogo** (cerca de uma hora e meia). O ovo fica em pé no tapete esperando. Cada casal bota só um ovo até alguém pegá-lo, então um servidor ligado sozinho não enche de ovos. Nada é botado enquanto houver 6 ou mais drakes adultos num raio de 100 m (os guardados no totem não contam).
+- Um ovo botado puxa aos pais: pais com mais estrelas dão mais estrelas, e cada pai com brilho deixa um filhote com brilho mais provável.
+- Ovos botados **não são dignos**: o altar da Moder os recusa.
+- Olhe para um tapete de palha com drakes domados por perto para ver como está o ninho: quantos drakes estão perto, ou quanto falta para o próximo ovo.
+- Um drake adulto só aceita a **Sela de Drake** (bancada 4: um troféu de drake, peles de lobo, prata, glândulas de gelo).
 - Montado, ele voa: W/A/S/D direcionam, segure **Pular** para subir e **Agachar** para descer. A barra de voo acima da stamina (uma seção a cada 5 segundos) esvazia enquanto ele voa, e cada ataque gasta uma seção. Quando acaba, o drake desce e pousa, e só voa de novo depois que a barra enche no chão. Dar comida enche a barra na hora.
 - Desça perto do chão e segure Agachar para **pousar**. No chão ele anda; Pular decola de novo. Você só desce (E) com ele no chão.
 - **Ataque** como um arco: segure o botão direito para mirar e clique com o esquerdo para atirar, voando baixo (até uns 4 m). Gelo dispara um raio de gelo, pedra faz surgir um espinho de pedra do chão, fogo e veneno um jato (o veneno machuca na hora e continua machucando), raio um raio que cai onde acerta. Todo elemento bate igual; o que pesa é a fraqueza ou resistência do inimigo àquele tipo de dano. No chão ele levanta voo antes de atacar.

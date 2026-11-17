@@ -9,7 +9,7 @@ namespace Beastkeeper
     // CallKey anywhere else brings it to your side, wherever it is (from far away when you host or play alone;
     // on a dedicated server that needs the mod on the server too).
     // If it dies, the game that saw it die tells its player. It can then only come back at a Beast Totem: look
-    // at the totem and press CallKey, paying 5 food (what it eats first, else food you eat). It comes back
+    // at the totem and press CallKey, paying 3 of its kind's trophies, 5 from tier 3 on (no trophy: 5 food). It comes back
     // tamed, with its stars, name and halter, but without a saddle and with empty bags.
     // Copies left over from before (an older called one) go away when they show up near you (bags spill first).
     // A Beast Totem is also a safe: press E on it for a window where you store your favorite (it vanishes from the
@@ -89,6 +89,8 @@ namespace Beastkeeper
             return p != null && p.m_customData.TryGetValue(WorldKey("favorite"), out v) ? Template.Load(v) : null;
         }
 
+        internal static bool Has(Player p) { return Get(p) != null; }
+
         private static long Gen(Player p)
         {
             string v;
@@ -142,7 +144,11 @@ namespace Beastkeeper
         {
             if (!Plugin.Enabled.Value || Plugin.CallKey.Value.MainKey == KeyCode.None || !CanBeFavorite(c)) return "";
             if (IsFavorite(c))
-                return "\n<color=#ffd040>★ Favorite mount</color>" + (IsCalled(c) ? " (called)" : "") + "  [<color=yellow><b>" + Key() + "</b></color>] Remove";
+            {
+                string order = Orders.Name(Orders.Of(c));
+                return "\n<color=#ffd040>★ Favorite mount</color>" + (IsCalled(c) ? " (called)" : "") + (order != "" ? " - " + order : "") + "  [<color=yellow><b>" + Key() + "</b></color>] Remove"
+                    + (Plugin.OrderKey.Value.MainKey != KeyCode.None ? "  [<color=yellow><b>hold " + Plugin.OrderKey.Value + "</b></color>] Orders" : "");
+            }
             return "\n[<color=yellow><b>" + Key() + "</b></color>] Make favorite mount";
         }
 
@@ -189,8 +195,29 @@ namespace Beastkeeper
                 p.Message(MessageHud.MessageType.Center, Mount.Rideable(c) ? "Put a saddle on " + name + " first." : name + " can't be ridden.");
                 return;
             }
-            if (Stored(p)) { p.Message(MessageHud.MessageType.Center, "Your favorite rests inside a Beast Totem: take it out first."); return; }
             ZNetView nv = Leash.View(c);
+            string moved = null;
+            if (Stored(p))
+            {
+                // Your favorite rests in a totem (user, 2026-11-17): choosing another one moves it to the totems' other
+                // animals, still yours, to take out at any totem like them; refused only when that place is full.
+                Template was = Get(p);
+                System.Collections.Generic.List<Template> stable = StableList(p);
+                if (was != null && PerKind(stable, was.Prefab) >= StableMax)
+                {
+                    p.Message(MessageHud.MessageType.Center, "Your favorite rests in a Beast Totem and the totems already hold " + StableMax + " other animals of its kind: take one out first.");
+                    return;
+                }
+                if (was != null)
+                {
+                    was.Id = 0L;   // a plain stored animal now: no favorite mark when it comes out
+                    stable.Add(was);
+                    SaveStable(p, stable);
+                    moved = was.Name();
+                    Plugin.Debug("[favorite] the stored favorite " + was.Save() + " moved to the other animals (" + PerKind(stable, was.Prefab) + "/" + StableMax + " of its kind)");
+                }
+                SetStored(p, false);
+            }
             ZDO z = nv.GetZDO();
             // one animal, one favorite: if another player already chose it, it's taken
             long owner = z.GetLong(FavOwnerKey, 0L);
@@ -221,7 +248,8 @@ namespace Beastkeeper
             z.Set(FavOwnerNameKey, p.GetPlayerName());
             Template t = Capture(c, id);
             p.m_customData[WorldKey("favorite")] = t.Save();
-            p.Message(MessageHud.MessageType.Center, name + " is now your favorite mount. Press " + Key() + " to call it.");
+            p.Message(MessageHud.MessageType.Center, name + " is now your favorite mount. Press " + Key() + " to call it."
+                + (moved != null ? "\n" + moved + " stays in the Beast Totems with your other animals." : ""));
             Plugin.Debug("[favorite] " + t.Save());
         }
 
@@ -363,7 +391,7 @@ namespace Beastkeeper
             if (!Plugin.Enabled.Value || t == null || Plugin.CallKey.Value.MainKey == KeyCode.None) return "";
             if (Stored(p)) return "\n[<color=yellow><b>" + Key() + "</b></color>] Take " + t.Name() + " out";
             if (!Dead(p) && (FindLoaded(t.Id) != null || FindZdo(t.Id) != null)) return "";
-            return "\n[<color=yellow><b>" + Key() + "</b></color>] Bring " + t.Name() + " back (" + ReviveFood + " food)";
+            return "\n[<color=yellow><b>" + Key() + "</b></color>] Bring " + t.Name() + " back (" + PriceOf(t.Prefab) + ")";
         }
 
         internal static void Revive(Player p, Totem totem)
@@ -385,7 +413,9 @@ namespace Beastkeeper
             string food;
             if (!PayFood(p, totem.transform.position, prefab, out food))
             {
-                p.Message(MessageHud.MessageType.Center, "Bring " + ReviveFood + " food to bring " + t.Name() + " back (what it eats, or food you eat), in your bag or in chests nearby.");
+                p.Message(MessageHud.MessageType.Center, TrophyOf(prefab) != null
+                    ? "Bring " + PriceOf(t.Prefab) + " to bring " + t.Name() + " back, in your bag or in chests nearby."
+                    : "Bring " + ReviveFood + " food to bring " + t.Name() + " back (what it eats, or food you eat), in your bag or in chests nearby.");
                 return;
             }
             long gen = DateTime.UtcNow.Ticks;
@@ -399,15 +429,42 @@ namespace Beastkeeper
             SetDead(p, false);
             Vector3 at = SpotNear(totem.transform.position, Flat(p.transform.position - totem.transform.position));
             Spawn(p, t, prefab, at, Quaternion.LookRotation(Flat(p.transform.position - at)), gen);
-            p.Message(MessageHud.MessageType.Center, t.Name() + " is back (" + ReviveFood + " " + food + "). Saddle it again to ride.");
+            p.Message(MessageHud.MessageType.Center, t.Name() + " is back (" + food + "). Saddle it again to ride.");
             Effects.Shake(0.6f);
         }
 
         private const float ChestRange = 30f;
         private static readonly System.Reflection.MethodInfo CheckAccess = HarmonyLib.AccessTools.Method(typeof(Container), "CheckAccess");
 
-        // 5 of one food, from your bag first and then from chests near the totem:
-        // what the animal eats first, else anything you can eat
+        // Bringing a favorite back costs trophies of its own kind (user, 2026-11-17), from your bag first and then
+        // from chests near the totem. Animals that drop no trophy (hens, young ones...) still cost 5 of one food:
+        // what the animal eats first, else anything you can eat.
+        // 3 trophies; 5 from tier 3 on (wolf, drake, lox, hare, asksvin...) (user, 2026-11-17)
+        private static int TrophiesFor(string prefab) { return Tiers.OfPrefab(prefab) >= 3 ? 5 : 3; }
+
+        internal static string TrophyOf(GameObject prefab)
+        {
+            CharacterDrop cd = prefab != null ? prefab.GetComponent<CharacterDrop>() : null;
+            if (cd == null || cd.m_drops == null) return null;
+            foreach (CharacterDrop.Drop d in cd.m_drops)
+            {
+                ItemDrop id = d != null && d.m_prefab != null ? d.m_prefab.GetComponent<ItemDrop>() : null;
+                if (id != null && id.m_itemData.m_shared.m_itemType == ItemDrop.ItemData.ItemType.Trophy) return id.m_itemData.m_shared.m_name;
+            }
+            return null;
+        }
+
+        // "3 Boar trophy" / "5 food"
+        internal static string PriceOf(string prefabName)
+        {
+            GameObject g = ZNetScene.instance != null ? ZNetScene.instance.GetPrefab(prefabName) : null;
+            string trophy = TrophyOf(g);
+            if (trophy == null) return ReviveFood + " food";
+            return TrophiesFor(prefabName) + " " + (Localization.instance != null ? Localization.instance.Localize(trophy) : trophy);
+        }
+
+        internal static string FavoritePrice(Player p) { Template t = Get(p); return t != null ? PriceOf(t.Prefab) : ""; }
+
         private static bool PayFood(Player p, Vector3 near, GameObject prefab, out string what)
         {
             what = "";
@@ -437,11 +494,24 @@ namespace Beastkeeper
                     else if (food) any[sh.m_name] = (any.ContainsKey(sh.m_name) ? any[sh.m_name] : 0) + it.m_stack;
                 }
             string pick = null;
-            foreach (var kv in diet) if (kv.Value >= ReviveFood) { pick = kv.Key; break; }
-            if (pick == null) foreach (var kv in any) if (kv.Value >= ReviveFood) { pick = kv.Key; break; }
-            if (pick == null) return false;
+            int need = ReviveFood;
+            string trophy = TrophyOf(prefab);
+            if (trophy != null)
+            {
+                need = TrophiesFor(Utils.GetPrefabName(prefab));
+                int have = 0;
+                foreach (Inventory inv in sources) foreach (ItemDrop.ItemData it in inv.GetAllItems()) if (it.m_shared.m_name == trophy) have += it.m_stack;
+                if (have < need) return false;
+                pick = trophy;
+            }
+            else
+            {
+                foreach (var kv in diet) if (kv.Value >= ReviveFood) { pick = kv.Key; break; }
+                if (pick == null) foreach (var kv in any) if (kv.Value >= ReviveFood) { pick = kv.Key; break; }
+                if (pick == null) return false;
+            }
 
-            int left = ReviveFood;
+            int left = need;
             for (int i = 0; i < sources.Count && left > 0; i++)
             {
                 int have = sources[i].CountItems(pick);
@@ -455,8 +525,8 @@ namespace Beastkeeper
                 sources[i].RemoveItem(pick, take);
                 left -= take;
             }
-            what = Localization.instance != null ? Localization.instance.Localize(pick) : pick;
-            Plugin.Debug("[favorite] paid " + ReviveFood + " " + pick + " (" + chests.Count + " chests in reach)");
+            what = need + " " + (Localization.instance != null ? Localization.instance.Localize(pick) : pick);
+            Plugin.Debug("[favorite] paid " + need + " " + pick + " (" + chests.Count + " chests in reach)");
             return true;
         }
 
@@ -604,6 +674,7 @@ namespace Beastkeeper
             if (t == null) return 0;
             name = t.Name();
             System.Collections.Generic.List<string> d = new System.Collections.Generic.List<string>();
+            LookTags(t.Look, d);
             if (t.Level > 1) d.Add((t.Level - 1) + (t.Level == 2 ? " star" : " stars"));
             if (t.Saddle > 0) d.Add("saddled");
             if (t.Halter) d.Add("wears a halter");
@@ -613,6 +684,60 @@ namespace Beastkeeper
             if (c != null && !c.IsDead() && Vector3.Distance(c.transform.position, totem.transform.position) <= StoreRange) return 2;
             if (c != null || FindZdo(t.Id) != null) return 3;
             return 4;
+        }
+
+        // ------------------------------------------------------------ renaming from the totem window (user, 2026-11-17)
+
+        // the game's own name for animals it tames itself, ours for the others
+        private static void SetTemplateName(Template t, string name)
+        {
+            GameObject g = ZNetScene.instance != null ? ZNetScene.instance.GetPrefab(t.Prefab) : null;
+            if (g != null && g.GetComponent<Tameable>() != null) { t.TamedName = name; t.OurName = ""; }
+            else { t.OurName = name; t.TamedName = ""; }
+        }
+
+        private static string CleanName(string name)
+        {
+            name = (name ?? "").Replace("|", "").Replace("\n", " ").Replace("\r", "").Trim();
+            return name.Length > 20 ? name.Substring(0, 20) : name;
+        }
+
+        internal static void RenameFavorite(Player p, string name)
+        {
+            Template t = Get(p);
+            if (t == null) return;
+            name = CleanName(name);
+            Character c = FindLoaded(t.Id);
+            if (c != null) SetLiveName(c, name);
+            SetTemplateName(t, name);
+            p.m_customData[WorldKey("favorite")] = t.Save();
+            Plugin.Debug("[rename] favorite is now '" + name + "'");
+        }
+
+        internal static void RenameStored(Player p, int index, string name)
+        {
+            System.Collections.Generic.List<Template> list = StableList(p);
+            if (index < 0 || index >= list.Count) return;
+            SetTemplateName(list[index], CleanName(name));
+            SaveStable(p, list);
+            Plugin.Debug("[rename] stored animal " + index + " is now '" + name + "'");
+        }
+
+        internal static void RenameAnimal(Player p, Character c, string name)
+        {
+            if (c == null) return;
+            name = CleanName(name);
+            SetLiveName(c, name);
+            Template t = Get(p);
+            ZDO z = Zdo(c);
+            if (t != null && z != null && z.GetLong(IdKey, 0L) == t.Id) { SetTemplateName(t, name); p.m_customData[WorldKey("favorite")] = t.Save(); }
+        }
+
+        private static void SetLiveName(Character c, string name)
+        {
+            Tameable tm = c.GetComponent<Tameable>();
+            if (tm != null) tm.SetText(name);
+            else Rename.Set(c, name);
         }
 
         internal static int ReviveCost { get { return ReviveFood; } }
@@ -670,9 +795,73 @@ namespace Beastkeeper
         // ------------------------------------------------------------ the stable: other tamed animals carried with you
 
         // Any tamed animal near a totem that isn't another player's favorite can be stored too: it leaves the world
-        // (bags spill first) and is written down on your character, up to StableMax, for this world. Any totem gives
-        // it back, only to you. Your favorite keeps its own place above.
+        // (bags spill first) and is written down on your character, up to StableMax of each kind (user, 2026-11-17:
+        // 10 drakes, 10 wolves, 10 lox...), for this world. Any totem gives it back, only to you. Your favorite keeps
+        // its own place and doesn't count.
         internal const int StableMax = 10;
+
+        private static int PerKind(System.Collections.Generic.List<Template> list, string prefab)
+        {
+            int n = 0;
+            foreach (Template t in list) if (t.Prefab == prefab) n++;
+            return n;
+        }
+
+        // ------------------------------------------------------------ what the totem window lists (user, 2026-11-17: tabs by kind, stars, glow)
+
+        internal class Entry
+        {
+            public string Name = "", Detail = "", Prefab = "", Kind = "";
+            public int Stars, Index = -1;
+            public bool Glows;
+            public Character Animal;
+        }
+
+        internal static string KindOf(string prefab)
+        {
+            GameObject g = ZNetScene.instance != null ? ZNetScene.instance.GetPrefab(prefab) : null;
+            Character pc = g != null ? g.GetComponent<Character>() : null;
+            return pc != null && Localization.instance != null ? Localization.instance.Localize(pc.m_name) : prefab;
+        }
+
+        private static bool GlowsIn(string look)
+        {
+            foreach (string part in (look ?? "").Split(',')) if (part == "g=1" || part == "hg=1") return true;
+            return false;
+        }
+
+        internal static System.Collections.Generic.List<Entry> StableEntries(Player p)
+        {
+            System.Collections.Generic.List<Entry> r = new System.Collections.Generic.List<Entry>();
+            System.Collections.Generic.List<Template> list = StableList(p);
+            for (int i = 0; i < list.Count; i++)
+            {
+                Template t = list[i];
+                r.Add(new Entry { Name = t.Name(), Detail = Detail(t), Prefab = t.Prefab, Kind = KindOf(t.Prefab), Stars = Mathf.Max(0, t.Level - 1), Glows = GlowsIn(t.Look), Index = i });
+            }
+            return r;
+        }
+
+        internal static System.Collections.Generic.List<Entry> NearEntries(Player p, Totem totem)
+        {
+            System.Collections.Generic.List<Entry> r = new System.Collections.Generic.List<Entry>();
+            foreach (Character c in StableCandidates(p, totem))
+            {
+                string prefab = Utils.GetPrefabName(c.gameObject);
+                r.Add(new Entry { Name = c.GetHoverName(), Detail = AnimalDetail(c), Prefab = prefab, Kind = KindOf(prefab), Stars = Mathf.Max(0, c.GetLevel() - 1), Glows = GlowsIn(LookOf(Zdo(c))), Animal = c });
+            }
+            return r;
+        }
+
+        // your favorite as a row of the list, with its state (see WindowState); null when you have none
+        internal static Entry FavoriteEntry(Player p, Totem totem, out int state)
+        {
+            string name, detail;
+            state = WindowState(p, totem, out name, out detail);
+            Template t = Get(p);
+            if (state == 0 || t == null) return null;
+            return new Entry { Name = name, Detail = detail, Prefab = t.Prefab, Kind = KindOf(t.Prefab), Stars = Mathf.Max(0, t.Level - 1), Glows = GlowsIn(t.Look), Animal = FindLoaded(t.Id) };
+        }
 
         private static System.Collections.Generic.List<Template> StableList(Player p)
         {
@@ -695,6 +884,20 @@ namespace Beastkeeper
             p.m_customData[WorldKey("stable")] = string.Join("\n", lines);
         }
 
+        // "Earth" for a drake of that element, "glows" for the rare glowing ones (user, 2026-11-17: easy to spot in the list)
+        private static void LookTags(string look, System.Collections.Generic.List<string> d)
+        {
+            int el = 0;
+            bool glows = false;
+            foreach (string part in (look ?? "").Split(','))
+            {
+                if (part.StartsWith("e=")) int.TryParse(part.Substring(2), out el);
+                else if (part == "g=1" || part == "hg=1") glows = true;
+            }
+            if (el >= Drake.Frost) d.Add(Drake.ElementName(el));
+            if (glows) d.Add("<color=#FFD66B>glows</color>");
+        }
+
         // what the window lists: name and a short line about each stored animal
         internal static string[] StableNames(Player p, out string[] details)
         {
@@ -712,6 +915,7 @@ namespace Beastkeeper
             Character pc = g != null ? g.GetComponent<Character>() : null;
             string kind = pc != null && Localization.instance != null ? Localization.instance.Localize(pc.m_name) : t.Prefab;
             if (kind != t.Name()) d.Add(kind);
+            LookTags(t.Look, d);
             if (t.Level > 1) d.Add((t.Level - 1) + (t.Level == 2 ? " star" : " stars"));
             if (SaddleOn(t) > 0) d.Add("saddled");
             if (t.Halter) d.Add("wears a halter");
@@ -750,6 +954,7 @@ namespace Beastkeeper
             string kind = Localization.instance != null ? Localization.instance.Localize(c.m_name) : c.m_name;
             System.Collections.Generic.List<string> d = new System.Collections.Generic.List<string>();
             if (kind != c.GetHoverName()) d.Add(kind);
+            LookTags(LookOf(Zdo(c)), d);
             if (c.GetLevel() > 1) d.Add((c.GetLevel() - 1) + (c.GetLevel() == 2 ? " star" : " stars"));
             if (Mount.SaddleTier(c) > 0) d.Add("saddled");
             if (Halter.Wears(c)) d.Add("wears a halter");
@@ -761,7 +966,8 @@ namespace Beastkeeper
             string why = StableRefusal(p, c, totem);
             if (why != null) { p.Message(MessageHud.MessageType.Center, why); return; }
             System.Collections.Generic.List<Template> list = StableList(p);
-            if (list.Count >= StableMax) { p.Message(MessageHud.MessageType.Center, "You already carry " + StableMax + " animals in the totems: take one out first."); return; }
+            string prefab = Utils.GetPrefabName(c.gameObject);
+            if (PerKind(list, prefab) >= StableMax) { p.Message(MessageHud.MessageType.Center, "You already carry " + StableMax + " " + KindOf(prefab) + " in the totems: take one out first."); return; }
             ZNetView nv = Leash.View(c);
             if (nv == null || !nv.IsValid()) return;
             if (!nv.IsOwner()) nv.ClaimOwnership();
@@ -814,6 +1020,13 @@ namespace Beastkeeper
         // ------------------------------------------------------------ finding it
 
         // the marked animal itself first, else a mount called before
+        // your favorite, if it is loaded near here
+        internal static Character Loaded()
+        {
+            Template t = Player.m_localPlayer != null ? Get(Player.m_localPlayer) : null;
+            return t != null ? FindLoaded(t.Id) : null;
+        }
+
         private static Character FindLoaded(long id)
         {
             Character copy = null;

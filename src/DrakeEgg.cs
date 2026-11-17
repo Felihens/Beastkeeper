@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using HarmonyLib;
 using UnityEngine;
 
@@ -16,10 +17,14 @@ namespace Beastkeeper
         internal const string EggPrefab = "DragonEgg";
         private const string ModerKey = "defeated_dragon";
         private static readonly int WarmKey = "Beastkeeper_eggWarm".GetStableHashCode();   // seconds kept warm so far
+        // Time away counts too (user, 2026-11-17): at each warm check the egg writes the time and how long its fire can
+        // still burn; when its land loads again, the time gone by counts, up to what that fire could burn meanwhile.
+        private static readonly int WarmAtKey = "Beastkeeper_eggWarmAt".GetStableHashCode();   // server time (ms) of the last warm check, 0 = it was cold
+        private static readonly int BurnKey = "Beastkeeper_eggBurn".GetStableHashCode();       // seconds its fire could still burn then
 
         internal static bool IsEgg(GameObject go) { return go != null && Utils.GetPrefabName(go) == EggPrefab; }
 
-        private static bool ModerDead()
+        internal static bool ModerDead()
         {
             return ZoneSystem.instance != null && ZoneSystem.instance.GetGlobalKey(ModerKey);
         }
@@ -70,6 +75,43 @@ namespace Beastkeeper
             return 0;
         }
 
+        // the item each element's egg is woken with, for the drop below
+        internal static string ItemOf(int el)
+        {
+            switch (el)
+            {
+                case Drake.Frost: return "FreezeGland";
+                case Drake.Fire: return "SurtlingCore";
+                case Drake.Poison: return "Ooze";
+                case Drake.Earth: return "Obsidian";
+                case Drake.Lightning: return "Thunderstone";
+            }
+            return null;
+        }
+
+        // A drake hatched from an egg also drops one of the item its egg was woken with (user, 2026-11-17),
+        // on top of what a drake drops anyway, and only frost ones keep the freeze glands. Wild drakes are left as they are.
+        [HarmonyPatch(typeof(CharacterDrop), "GenerateDropList"), HarmonyPostfix]
+        private static void ElementDrop(CharacterDrop __instance, List<KeyValuePair<GameObject, int>> __result)
+        {
+            if (!On() || __result == null || ObjectDB.instance == null) return;
+            Character c = __instance.GetComponent<Character>();
+            if (c == null || !Drake.Is(c)) return;
+            ZNetView nv = c.GetComponent<ZNetView>();
+            if (nv == null || !nv.IsValid()) return;
+            string item = ItemOf(nv.GetZDO().GetInt(Drake.ElementKey, 0));
+            GameObject prefab = item != null ? ObjectDB.instance.GetItemPrefab(item) : null;
+            if (prefab == null) return;
+            // only frost drakes keep the game's freeze glands (user, 2026-11-17)
+            int gone = 0;
+            if (item != "FreezeGland") gone = __result.RemoveAll(kv => kv.Key != null && kv.Key.name == "FreezeGland");
+            if (gone > 0) Plugin.Debug("[egg] its freeze glands left out: not a frost drake");
+            // no trophy from a hatched drake (user, 2026-11-17): otherwise eggs would be a trophy farm
+            if (__result.RemoveAll(kv => kv.Key != null && kv.Key.name == "TrophyHatchling") > 0) Plugin.Debug("[egg] no trophy: it hatched from an egg");
+            __result.Add(new KeyValuePair<GameObject, int>(prefab, 1));
+            Plugin.Debug("[egg] a " + Drake.ElementName(nv.GetZDO().GetInt(Drake.ElementKey, 0)) + " drake died: it also drops 1 " + item);
+        }
+
         [HarmonyPatch(typeof(ItemDrop), "UseItem"), HarmonyPrefix]
         private static bool GiveItem(ItemDrop __instance, Humanoid user, ItemDrop.ItemData item, ref bool __result)
         {
@@ -82,7 +124,7 @@ namespace Beastkeeper
             if (__instance.m_itemData.m_stack > 1) { p.Message(MessageHud.MessageType.Center, "Lay the eggs down one by one."); return false; }
             if (nv.GetZDO().GetInt(Drake.ElementKey, 0) != 0) { p.Message(MessageHud.MessageType.Center, "This egg is already awake."); return false; }
             int el = ElementOf(item);
-            if (el == 0) { p.Message(MessageHud.MessageType.Center, "The egg doesn't take that. " + Choices()); return false; }
+            if (el == 0) { p.Message(MessageHud.MessageType.Center, "The egg doesn't stir. It wants something else."); return false; }
             if (!nv.IsOwner()) nv.ClaimOwnership();
             nv.GetZDO().Set(Drake.ElementKey, el);
             nv.GetZDO().Set(WarmKey, 0f);
@@ -124,7 +166,7 @@ namespace Beastkeeper
             if (egg == null) return false;
             p.GetInventory().RemoveItem(item, 1);
             p.Message(MessageHud.MessageType.Center, ModerDead()
-                ? (Plugin.DrakeEggNeedsFire.Value ? "You lay the egg by the fire. Give it an item to wake it." : "You lay the egg down. Give it an item to wake it.")
+                ? (Plugin.DrakeEggNeedsFire.Value ? "You lay the egg by the fire. Make it an offering to wake it." : "You lay the egg down. Make it an offering to wake it.")
                 : "You lay the egg by the fire, but it stays cold: its mother still lives.");
             Plugin.Debug("[egg] laid by " + __instance.name + " at " + at);
             return false;
@@ -137,9 +179,12 @@ namespace Beastkeeper
         {
             if (!On() || !IsEgg(__instance.gameObject)) return;
             ZNetView nv = __instance.GetComponent<ZNetView>();
-            if (nv == null || !nv.IsValid() || !ModerDead()) return;
+            if (nv == null || !nv.IsValid()) return;
+            if (DrakeBreed.Laid(__instance.m_itemData)) __result += "\n<color=#c8b48a>Laid by your drakes</color>";
+            if (!ModerDead()) return;
             int el = nv.GetZDO().GetInt(Drake.ElementKey, 0);
-            if (el == 0) { __result += "\n<color=#9fd8ff>Give it an item to wake it (hotbar key while looking at it):</color>\n" + Choices(); return; }
+            // what to offer is for the player to find out, or for Hugin to hint (user, 2026-11-17)
+            if (el == 0) { __result += "\n[<color=yellow><b>1-8</b></color>] <color=#9fd8ff>Make an offering</color>"; Tips.Once("egg"); return; }
             float warm = nv.GetZDO().GetFloat(WarmKey, 0f), need = HatchSeconds;
             string state = Warm(__instance) ? "warm" : "cold: lay it by a fire";
             __result += "\n<color=#9fd8ff>" + Drake.ElementName(el) + " drake egg, " + state + ". Hatching " + Mathf.FloorToInt(100f * Mathf.Clamp01(warm / need)) + "%</color>";
@@ -153,6 +198,26 @@ namespace Beastkeeper
         {
             if (!Plugin.DrakeEggNeedsFire.Value) return true;
             return EffectArea.IsPointInsideArea(egg.transform.position, EffectArea.Type.Heat, 0.5f) != null;
+        }
+
+        // how long the fires keeping it warm can still burn (seconds); a fire that never runs out, or heat that isn't
+        // a fire, counts as forever
+        private const float Forever = 1e9f;
+        private static float BurnLeft(ItemDrop egg)
+        {
+            if (!Plugin.DrakeEggNeedsFire.Value) return Forever;
+            float best = 0f;
+            foreach (Collider col in Physics.OverlapSphere(egg.transform.position, 0.5f, ~0, QueryTriggerInteraction.Collide))
+            {
+                EffectArea area = col != null ? col.GetComponent<EffectArea>() : null;
+                if (area == null || (area.m_type & EffectArea.Type.Heat) == 0) continue;
+                Fireplace f = col.GetComponentInParent<Fireplace>();
+                if (f == null || f.m_infiniteFuel) return Forever;
+                ZNetView fv = f.GetComponent<ZNetView>();
+                if (fv == null || !fv.IsValid()) continue;
+                best = Mathf.Max(best, fv.GetZDO().GetFloat(ZDOVars.s_fuel, 0f) * f.m_secPerFuel);
+            }
+            return best;
         }
 
         [HarmonyPatch(typeof(ZNetScene), "Awake"), HarmonyPostfix]
@@ -181,11 +246,30 @@ namespace Beastkeeper
                 if (Time.time < _next) return;
                 const float step = 5f;
                 _next = Time.time + step;
-                if (!On() || _item == null || _nv == null || !_nv.IsValid() || !_nv.IsOwner()) return;
+                if (!On() || _item == null || _nv == null || !_nv.IsValid()) return;
+                if (DrakeBreed.Nested(_nv)) DrakeBreed.Stand(_item);   // laid on a nest: stands there until taken
+                if (!_nv.IsOwner()) return;
                 ZDO z = _nv.GetZDO();
                 int el = z.GetInt(Drake.ElementKey, 0);
-                if (el == 0 || _item.m_itemData.m_stack > 1 || !ModerDead() || !Warm(_item)) return;
-                float warm = z.GetFloat(WarmKey, 0f) + step;
+                if (el == 0 || _item.m_itemData.m_stack > 1 || !ModerDead() || ZNet.instance == null) return;
+                long nowMs = (long)(ZNet.instance.GetTimeSeconds() * 1000.0);
+                long lastMs = z.GetLong(WarmAtKey, 0L);
+                float add = 0f;
+                // back after a while away: the time gone by, while its fire could still burn
+                if (lastMs > 0L)
+                {
+                    float gap = (nowMs - lastMs) / 1000f;
+                    if (gap > step * 3f)
+                    {
+                        add = Mathf.Min(gap, z.GetFloat(BurnKey, 0f));
+                        if (add > 0f) Plugin.Debug("[egg] " + Drake.ElementName(el) + " egg: " + Mathf.RoundToInt(gap / 60f) + " min away, " + Mathf.RoundToInt(add / 60f) + " min of it kept warm");
+                    }
+                }
+                bool warmNow = Warm(_item);
+                if (warmNow) { add = Mathf.Max(add, step); z.Set(WarmAtKey, nowMs); z.Set(BurnKey, BurnLeft(_item)); }
+                else if (lastMs != 0L) z.Set(WarmAtKey, 0L);
+                if (add <= 0f) return;
+                float warm = z.GetFloat(WarmKey, 0f) + add;
                 z.Set(WarmKey, warm);
                 if (warm >= HatchSeconds) Hatch(el);
             }
@@ -199,7 +283,7 @@ namespace Beastkeeper
                 Character baby = go.GetComponent<Character>();
                 ZNetView nv = go.GetComponent<ZNetView>();
                 if (baby == null || nv == null || !nv.IsValid()) return;
-                Drake.MakeBaby(baby, nv, el, at);
+                Drake.MakeBaby(baby, nv, el, at, _item != null ? _item.m_itemData : null);
                 GameObject boar = ZNetScene.instance.GetPrefab("Boar");
                 Procreation pr = boar != null ? boar.GetComponent<Procreation>() : null;
                 if (pr != null && pr.m_birthEffects != null) pr.m_birthEffects.Create(at, Quaternion.identity);

@@ -51,11 +51,24 @@ namespace Beastkeeper
         }
 
         // the attack's moment (Launch)
+        // the enemy the spike goes for (like the lightning): set by the defend attack, else the one you aimed at
+        internal static Character _spikeFoe;
+
         private static void Erupt(Character c)
         {
             float charge = _chargeUsed;
             Vector3 at, normal;
-            if (!SpikeSpot(c, _aimAt != Vector3.zero ? _aimAt : AimPoint(c, Player.m_localPlayer), out at, out normal))
+            Vector3 aim = _aimAt != Vector3.zero ? _aimAt : AimPoint(c, Player.m_localPlayer);
+            // it bursts out under the enemy where it stands NOW (it moved while the drake got ready), a step ahead of it
+            Character foe = _spikeFoe != null ? _spikeFoe : Mount.RiddenCharacter() == c ? _aimFoe : null;
+            if (foe != null && !foe.IsDead() && Vector3.Distance(c.transform.position, foe.transform.position) <= SpikeReach + 5f)
+            {
+                Vector3 v = foe.GetVelocity();
+                v.y = 0f;
+                aim = foe.transform.position + v * 0.15f;
+                Plugin.Debug("[spike] follows " + foe.name);
+            }
+            if (!SpikeSpot(c, aim, out at, out normal))
             {
                 if (Mount.RiddenCharacter() == c) Say("The stone can't rise from deep water.");   // a drake on its own just misses
                 return;
@@ -174,7 +187,7 @@ namespace Beastkeeper
             {
                 float ang = (i + (float)rnd.NextDouble() * 0.6f) / n * 360f;
                 Vector3 dir = Quaternion.AngleAxis(ang, Vector3.up) * Vector3.forward;
-                float dist = Range(rnd, 1.1f, 2.3f) * size;
+                float dist = Range(rnd, 0.95f, 1.8f) * size;   // close around the big spike (user, 2026-11-17)
                 Vector3 p = at + dir * dist;
                 RaycastHit hit;
                 if (Physics.Raycast(p + Vector3.up * 3f, Vector3.down, out hit, 8f, LayerMask.GetMask("terrain", "static_solid", "Default", "piece"), QueryTriggerInteraction.Ignore)) p = hit.point;
@@ -183,14 +196,14 @@ namespace Beastkeeper
                 float sh;
                 if (i % 3 == 0 || Rubble.RockMesh == null)
                 {
-                    sh = Range(rnd, 0.7f, 1.4f) * size;
-                    g = Part(root, "shard", SpikeMesh(rnd, sh, Range(rnd, 0.22f, 0.36f) * size), _mat);
+                    sh = Range(rnd, 1.5f, 2.6f) * size;
+                    g = Part(root, "shard", SpikeMesh(rnd, sh, Range(rnd, 0.42f, 0.66f) * size), _mat);
                     Quaternion out_ = Quaternion.FromToRotation(Vector3.up, (Vector3.up + dir * Range(rnd, 0.3f, 0.7f)).normalized);
                     g.transform.rotation = out_ * Quaternion.AngleAxis(Range(rnd, 0f, 360f), Vector3.up);
                 }
                 else
                 {
-                    float w = Range(rnd, 0.35f, 0.7f) * size;
+                    float w = Range(rnd, 0.75f, 1.35f) * size;
                     g = Part(root, "stone", Rubble.RockMesh, Rubble.RockMat);
                     g.transform.localScale = new Vector3(1f, Range(rnd, 0.7f, 1.3f), 1f) * (w / Mathf.Max(0.01f, Rubble.RockSpan));
                     g.transform.rotation = Quaternion.Euler(Range(rnd, 0f, 360f), Range(rnd, 0f, 360f), Range(rnd, 0f, 360f));
@@ -207,9 +220,55 @@ namespace Beastkeeper
                 foreach (EffectList.EffectData e in rock.m_hitEffects.m_effectPrefabs)
                     if (e != null && e.m_enabled && e.m_prefab != null && e.m_prefab.GetComponent<ZNetView>() == null)
                         UnityEngine.Object.Instantiate(e.m_prefab, at, Quaternion.identity);
+            GameObject thud = Thud();
+            if (thud != null) UnityEngine.Object.Instantiate(thud, at, Quaternion.identity);   // the troll's blow
             Transform cam = GameCamera.instance != null ? GameCamera.instance.transform : null;
             float far = cam != null ? Vector3.Distance(cam.position, at) : 0f;
             Effects.Shake(Mathf.Lerp(0.9f, 0.2f, Mathf.InverseLerp(5f, 70f, far)) * (0.7f + 0.5f * (size - 1f) / 0.8f));
+        }
+
+        // The sound of the troll's blow as the stone bursts out: the sound of its thrown rock hitting, else of its
+        // fists hitting. Found once in the troll's own attacks (every sound they have is written to the log).
+        private static GameObject _thud;
+        private static bool _thudLooked;
+        private static GameObject Thud()
+        {
+            if (_thudLooked || ZNetScene.instance == null) return _thud;
+            _thudLooked = true;
+            GameObject troll = ZNetScene.instance.GetPrefab("Troll");
+            Humanoid h = troll != null ? troll.GetComponent<Humanoid>() : null;
+            GameObject rockSfx = null, fistSfx = null;
+            List<string> seen = new List<string>();
+            if (h != null && h.m_defaultItems != null)
+                foreach (GameObject item in h.m_defaultItems)
+                {
+                    ItemDrop d = item != null ? item.GetComponent<ItemDrop>() : null;
+                    if (d == null) continue;
+                    ItemDrop.ItemData.SharedData sd = d.m_itemData.m_shared;
+                    GameObject proj = sd.m_attack != null ? sd.m_attack.m_attackProjectile : null;
+                    Projectile pr = proj != null ? proj.GetComponent<Projectile>() : null;
+                    if (pr != null) { GameObject f = Sfx(pr.m_hitEffects, item.name, seen); if (f != null && rockSfx == null) rockSfx = f; }
+                    GameObject g = Sfx(sd.m_hitEffect, item.name, seen);
+                    if (g != null && fistSfx == null) fistSfx = g;
+                }
+            _thud = rockSfx != null ? rockSfx : fistSfx;
+            if (_thud == null) foreach (string n in new[] { "sfx_troll_rock_destroyed", "sfx_rock_destroyed", "sfx_rock_hit" }) { _thud = ZNetScene.instance.GetPrefab(n); if (_thud != null) break; }
+            Plugin.Debug("[spike] troll sounds: " + (seen.Count > 0 ? string.Join(", ", seen.ToArray()) : "none") + "; the spike uses " + (_thud != null ? _thud.name : "none"));
+            return _thud;
+        }
+
+        private static GameObject Sfx(EffectList list, string from, List<string> seen)
+        {
+            GameObject found = null;
+            if (list == null || list.m_effectPrefabs == null) return null;
+            foreach (EffectList.EffectData e in list.m_effectPrefabs)
+            {
+                if (e == null || !e.m_enabled || e.m_prefab == null || e.m_prefab.GetComponent<ZNetView>() != null) continue;
+                if (e.m_prefab.GetComponentInChildren<ZSFX>(true) == null && !e.m_prefab.name.StartsWith("sfx_")) continue;
+                seen.Add(from + ":" + e.m_prefab.name);
+                if (found == null) found = e.m_prefab;
+            }
+            return found;
         }
 
         private void Add(Transform t, Vector3 down, Vector3 upPos, float delay)

@@ -48,6 +48,17 @@ namespace Beastkeeper
             return Mathf.Clamp(Mathf.Max(biome, size), 1, Max);
         }
 
+        // the tier of a kind of animal by its prefab, without one in the world: the list, else its size
+        internal static int OfPrefab(string prefab)
+        {
+            int t;
+            if (Species.TryGetValue(prefab ?? "", out t)) return t;
+            GameObject g = ZNetScene.instance != null ? ZNetScene.instance.GetPrefab(prefab) : null;
+            Character c = g != null ? g.GetComponent<Character>() : null;
+            float hp = c != null ? c.m_health : 0f;
+            return hp >= 600f ? 4 : hp >= 200f ? 3 : hp >= 60f ? 2 : 1;
+        }
+
         // how hard the tug of war is (the serpent keeps the moderate fight it always had)
         internal static int Tug(Character c)
         {
@@ -148,7 +159,7 @@ namespace Beastkeeper
             Make("WolfPelt:6,TrollHide:4,FineWood:2", "piece_workbench", 3),
             Make("LoxPelt:4,LinenThread:6,FineWood:4", "piece_workbench", 3),
             Make("Carapace:6,JuteRed:4,YggdrasilWood:4", "blackforge", 1),
-            Make("DragonTear:3,WolfPelt:6,Silver:4,FreezeGland:4", "piece_workbench", 4),   // Drake Saddle: after Moder
+            Make("TrophyHatchling:1,WolfPelt:6,Silver:4,FreezeGland:4", "piece_workbench", 4),   // Drake Saddle: a drake trophy (user, 2026-11-17: tears cost Moder eggs twice; hatching already needs Moder dead)
         };
         internal const string Totem = "Wood:10,Dandelion:6,LeatherScraps:2";
 

@@ -89,13 +89,14 @@ namespace Beastkeeper
             try
             {
                 _aimAt = foe.transform.position;
+                _spikeFoe = foe;
                 _chargeUsed = DefendSpikeCharge;
                 _attackMult = 1f + DefendSpikeCharge * (Plugin.DrakeEarthChargeMax.Value - 1f);
                 Erupt(c);
             }
             finally
             {
-                _aimAt = aim; _attackMult = mult; _chargeUsed = charge;
+                _aimAt = aim; _attackMult = mult; _chargeUsed = charge; _spikeFoe = null;
             }
         }
 
@@ -183,7 +184,7 @@ namespace Beastkeeper
 
         private static void SwitchDrake(Character now)
         {
-            float cd = Mathf.Max(0.2f, Plugin.DrakeAttackCooldown.Value);
+            float cd = _timerOf != null ? CooldownOf(ElementOf(_timerOf)) : 1.5f;
             if (_timerOf != null)
             {
                 float next = _nextShot;
