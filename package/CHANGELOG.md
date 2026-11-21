@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.1
+- Performance: checking whether you hold a lasso or a saddle is much lighter, and the drake walk no longer freezes the game now and then (its file check runs in the background). / Desempenho: checar se você segura um laço ou uma sela ficou bem mais leve, e o andar do drake não trava mais o jogo de vez em quando (a checagem do arquivo roda em segundo plano).
+- README: the "Troll" tier means tools made of troll hide, for the bear (trolls can't be tamed), and a step-by-step guide to hatching a drake. / README: a tier "Troll" são ferramentas de couro de troll, para o urso (trolls não podem ser domados), e um passo a passo para chocar um drake.
+
 ## 0.8.0
 - Drakes lay eggs: two grown tamed drakes near a straw rug lay an egg on it every 3 game days. The egg waits standing on the rug, one per pair until someone takes it, and none while 6 or more grown drakes are within 100 m. Looking at the rug shows how the nest is doing.
 - Drakes botam ovos: dois drakes adultos domados perto de um tapete de palha botam um ovo nele a cada 3 dias do jogo. O ovo espera em pé no tapete, um por casal até alguém pegar, e nenhum enquanto houver 6 ou mais drakes adultos num raio de 100 m. Olhar para o tapete mostra como está o ninho.

@@ -11,7 +11,7 @@ namespace Beastkeeper
     {
         public const string GUID = "felih.Beastkeeper";
         public const string NAME = "Beastkeeper";
-        public const string VERSION = "0.8.0";
+        public const string VERSION = "0.8.1";
 
         internal static ManualLogSource Log;
         internal static Plugin Instance;

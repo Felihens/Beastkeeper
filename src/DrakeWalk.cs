@@ -41,10 +41,40 @@ namespace Beastkeeper
             return f;
         }
 
+        // The file check runs on a background thread (2026-11-21: File.Exists / reading on the game's thread froze
+        // the game 0.5-1.5 s now and then, when the disk was slow to answer). The game's thread only picks up the
+        // result.
+        private static readonly object Lock = new object();
+        private static bool _busy, _haveResult, _resultNone;
+        private static WalkFile _result;
+        private static string _resultMsg;
+
         private static WalkFile Load()
         {
+            lock (Lock)
+            {
+                if (_haveResult)
+                {
+                    _haveResult = false;
+                    if (_resultNone) { if (_file != _embedded) _bonesFor = null; _file = _embedded; }
+                    else if (_result != null) { _file = _result; _bonesFor = null; }
+                    else if (_resultMsg != null) _file = null;
+                    if (_resultMsg != null) { if (_result == null && !_resultNone) Plugin.Log.LogWarning(_resultMsg); else Plugin.Debug(_resultMsg); }
+                    _result = null; _resultMsg = null; _resultNone = false;
+                }
+            }
             if (Time.time < _nextCheck) return _file;
             _nextCheck = Time.time + 2f;
+            lock (Lock) { if (_busy) return _file; _busy = true; }
+            DateTime known = _stamp;
+            bool haveFile = _file != null && _file != _embedded;
+            System.Threading.ThreadPool.QueueUserWorkItem(delegate { Check(known, haveFile); });
+            return _file;
+        }
+
+        private static void Check(DateTime known, bool haveFile)
+        {
+            WalkFile got = null; bool none = false; string msg = null;
             try
             {
                 string p = Path;
@@ -56,22 +86,29 @@ namespace Beastkeeper
                         _warned = true;
                         using (Stream s = typeof(DrakeWalk).Assembly.GetManifestResourceStream("Beastkeeper.drake_walk.json"))
                             if (s != null) using (StreamReader r = new StreamReader(s)) _embedded = Read(r.ReadToEnd());
-                        if (_embedded == null || _embedded.frames == null || _embedded.frames.Length == 0) { _embedded = null; Plugin.Log.LogWarning("[walk] the drake walk could not be read"); }
-                        else Plugin.Debug("[walk] loaded the built-in walk: " + _embedded.frames.Length + " frames");
+                        if (_embedded == null || _embedded.frames == null || _embedded.frames.Length == 0) { _embedded = null; msg = "[walk] the drake walk could not be read"; }
+                        else msg = "[walk] loaded the built-in walk: " + _embedded.frames.Length + " frames";
                     }
-                    if (_file != _embedded) _bonesFor = null;
-                    _file = _embedded;
-                    return _file;
+                    none = true;
                 }
-                DateTime t = File.GetLastWriteTimeUtc(p);
-                if (_file != null && t == _stamp) return _file;
-                WalkFile f = Read(File.ReadAllText(p));
-                if (f == null || f.frames == null || f.frames.Length == 0 || f.bones == null) { Plugin.Log.LogWarning("[walk] drake_walk.json has no frames or bones (" + (f == null ? "nothing read" : (f.frames == null ? 0 : f.frames.Length) + " frames, " + (f.bones == null ? 0 : f.bones.Length) + " bones") + ")"); _file = null; return null; }
-                _file = f; _stamp = t; _bonesFor = null;
-                Plugin.Debug("[walk] loaded " + f.frames.Length + " frames, " + f.bones.Length + " bones, " + f.metresPerCycle.ToString("0.0") + " m a cycle");
+                else
+                {
+                    DateTime t = File.GetLastWriteTimeUtc(p);
+                    if (!(haveFile && t == known))
+                    {
+                        WalkFile f = Read(File.ReadAllText(p));
+                        if (f == null || f.frames == null || f.frames.Length == 0 || f.bones == null)
+                            msg = "[walk] drake_walk.json has no frames or bones (" + (f == null ? "nothing read" : (f.frames == null ? 0 : f.frames.Length) + " frames, " + (f.bones == null ? 0 : f.bones.Length) + " bones") + ")";
+                        else { got = f; _stamp = t; msg = "[walk] loaded " + f.frames.Length + " frames, " + f.bones.Length + " bones, " + f.metresPerCycle.ToString("0.0") + " m a cycle"; }
+                    }
+                }
             }
-            catch (Exception e) { Plugin.Log.LogWarning("[walk] couldn't read drake_walk.json: " + e.Message); _file = null; }
-            return _file;
+            catch (Exception e) { msg = "[walk] couldn't read drake_walk.json: " + e.Message; }
+            lock (Lock)
+            {
+                _busy = false;
+                if (none || got != null || msg != null) { _haveResult = true; _resultNone = none; _result = got; _resultMsg = msg; }
+            }
         }
 
         private static WalkFile _bonesFor;

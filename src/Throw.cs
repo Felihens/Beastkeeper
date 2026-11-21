@@ -32,9 +32,7 @@ namespace Beastkeeper
         internal static bool Holding(Player p)
         {
             if (p == null) return false;
-            foreach (ItemDrop.ItemData it in p.GetInventory().GetAllItems())
-                if (Lasso.IsLasso(it) && p.IsItemEquiped(it)) return true;
-            return false;
+            return Lasso.IsLasso(Hands.Right(p)) || Lasso.IsLasso(Hands.Left(p));   // the lasso is two-handed: hands only
         }
 
         [HarmonyPatch(typeof(Player), "SetControls"), HarmonyPrefix]

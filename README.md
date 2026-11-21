@@ -31,6 +31,8 @@ Every tool comes in five tiers. A tool works on animals of its own tier and belo
 | 5 Carapace | hare, asksvin | Black forge | Black forge (Carapace Trap) | Black forge |
 | Drake | drake (hatched) | - | - | Workbench 4 (Drake Saddle) |
 
+The tier names are the material the tools are made of: the **Troll** tier is made of troll hide and is for the **bear**. Trolls themselves can't be caught or tamed.
+
 Any lasso holds an animal that is already tamed, whatever its tier. The **Beast Totem** has just one version and is built with the hammer (Misc tab).
 
 ### How to
@@ -68,6 +70,16 @@ Any lasso holds an animal that is already tamed, whatever its tier. The **Beast 
 **The sea serpent.** Hit it with the Abyssal Harpoon, then throw the lasso while it's still hooked. Tame it with a halter and ride it across the sea. It needs fish to keep its speed, and you can only get off near land or a ship.
 
 **Drakes.** Wild drakes can't be caught: tamed ones hatch from **Moder's eggs**, the dragon eggs in the drake nests of the Mountains, once Moder is dead.
+
+> **Hatch a drake, step by step**
+> 1. Kill Moder.
+> 2. Take a dragon egg from a drake nest in the Mountains (the drakes around it will attack).
+> 3. Lay the egg on the ground near a fire.
+> 4. Give the egg one item to choose its element: Freeze Gland or Crystal (frost), Surtling Core (fire), Ooze (poison), Obsidian (stone), Thunderstone (lightning).
+> 5. Keep the fire burning. After about 5 minutes a tamed baby drake hatches; it is grown in about 30 minutes.
+> 6. Put a Drake Saddle on it (workbench 4) and fly.
+
+The details:
 - Taking an egg from a nest makes the drakes around it come for you.
 - Lay the egg on the ground and give it an item. The item decides the drake's element: **Freeze Gland** or **Crystal** = frost, **Surtling Core** = fire, **Ooze** = poison, **Obsidian** = stone, **Thunderstone** = lightning. Each element has its own colours, and some drakes are born with glowing eyes and horns.
 - Keep the egg warm by a fire. It hatches after about 5 minutes into a tamed baby drake, which grows up in about 30 minutes. The time away counts too: leave the fire well fed, and when you come back the egg has been warm for as long as that fire could burn.
@@ -127,6 +139,8 @@ Cada ferramenta tem cinco tiers. Uma ferramenta funciona em animais do tier dela
 | 5 Carapaça | lebre, asksvin | Forja negra | Forja negra (armadilha de carapaça) | Forja negra |
 | Drake | drake (chocado) | - | - | Bancada 4 (Sela de Drake) |
 
+Os nomes das tiers são o material das ferramentas: a tier **Troll** é feita de couro de troll e serve pro **urso**. Os trolls em si não podem ser capturados nem domados.
+
 Qualquer laço segura um animal já domado, de qualquer tier. O **Totem das Feras** tem uma versão só e é construído com o martelo (aba Misc).
 
 ### Como usar
@@ -164,6 +178,16 @@ Qualquer laço segura um animal já domado, de qualquer tier. O **Totem das Fera
 **A serpente marinha.** Acerte com o Arpão Abissal e jogue o laço enquanto ela ainda está fisgada. Dome com um cabresto e atravesse o mar montado nela. Ela precisa de peixe para manter a velocidade, e você só desce perto de terra ou de um barco.
 
 **Drakes.** Drakes selvagens não podem ser capturados: os domados nascem dos **ovos da Moder**, os ovos de dragão nos ninhos de drake das Montanhas, depois que a Moder morre.
+
+> **Chocar um drake, passo a passo**
+> 1. Mate a Moder.
+> 2. Pegue um ovo de dragão num ninho de drake das Montanhas (os drakes em volta vão atacar).
+> 3. Coloque o ovo no chão perto de uma fogueira.
+> 4. Dê ao ovo um item pra escolher o elemento: Glândula de Gelo ou Cristal (gelo), Núcleo de Surtling (fogo), Gosma (veneno), Obsidiana (pedra), Pedra-trovão (raio).
+> 5. Mantenha o fogo aceso. Em uns 5 minutos nasce um filhote de drake domado; ele cresce em uns 30 minutos.
+> 6. Coloque uma Sela de Drake (bancada 4) e voe.
+
+Os detalhes:
 - Pegar um ovo do ninho faz os drakes em volta virem atrás de você.
 - Coloque o ovo no chão e dê um item a ele. O item decide o elemento do drake: **Glândula de Gelo** ou **Cristal** = gelo, **Núcleo de Surtling** = fogo, **Gosma** = veneno, **Obsidiana** = pedra, **Pedra-trovão** = raio. Cada elemento tem suas cores, e alguns drakes nascem com olhos e chifres brilhando.
 - Mantenha o ovo quente perto de uma fogueira. Ele choca em uns 5 minutos num filhote de drake domado, que cresce em uns 30 minutos. O tempo longe também conta: deixe a fogueira bem abastecida, e quando você voltar o ovo terá ficado quente pelo tempo que aquela fogueira conseguia queimar.

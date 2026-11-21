@@ -21,9 +21,17 @@ namespace Beastkeeper
         internal bool Is(ItemDrop.ItemData item)
         {
             if (item == null) return false;
+            // cheap check first: items made from our prefab share its m_shared (reading a Unity name allocates and
+            // was the main per-frame cost, 2026-11-19 profiler)
+            if (Prefab != null)
+            {
+                if (_shared == null) { ItemDrop d = Prefab.GetComponent<ItemDrop>(); if (d != null) _shared = d.m_itemData.m_shared; }
+                if (_shared != null && item.m_shared == _shared) return true;
+            }
             if (item.m_dropPrefab != null) return item.m_dropPrefab.name == PrefabName;
-            return Prefab != null && item.m_shared == Prefab.GetComponent<ItemDrop>().m_itemData.m_shared;
+            return false;
         }
+        private ItemDrop.ItemData.SharedData _shared;
     }
 
     [HarmonyPatch]

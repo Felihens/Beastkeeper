@@ -1729,10 +1729,12 @@ namespace Beastkeeper
             return false;
         }
 
+        // a saddle is a two-handed item: only the hands need a look, not the whole bag (per-frame cost, 2026-11-19)
         private static ItemDrop.ItemData Holding(Player p)
         {
-            foreach (ItemDrop.ItemData it in p.GetInventory().GetAllItems())
-                if (IsSaddle(it) && p.IsItemEquiped(it)) return it;
+            ItemDrop.ItemData r = Hands.Right(p), l = Hands.Left(p);
+            if (IsSaddle(r)) return r;
+            if (IsSaddle(l)) return l;
             return null;
         }
 
