@@ -11,7 +11,7 @@ namespace Beastkeeper
     {
         public const string GUID = "felih.Beastkeeper";
         public const string NAME = "Beastkeeper";
-        public const string VERSION = "0.8.1";
+        public const string VERSION = "0.8.5";
 
         internal static ManualLogSource Log;
         internal static Plugin Instance;
@@ -38,7 +38,7 @@ namespace Beastkeeper
         internal static ConfigEntry<float> TrapRadius, TrapHoldSeconds, RideMinHeight, RideAcceleration, RideWalkSpeed, RideSideSpeed, RideJumpForce;
         internal static ConfigEntry<float> TotemRange, TotemRadius, WanderRadius;
         internal static ConfigEntry<bool> TamedDefend;
-        internal static ConfigEntry<string> TamedHealth, TamedDamage;
+        internal static ConfigEntry<string> TamedHealth, TamedDamage, SaddleArmor;
         internal static ConfigEntry<float> DefendRange, ChaseLimit, FavoriteFollow;
         internal static ConfigEntry<KeyboardShortcut> CallKey, OrderKey;
         internal static ConfigEntry<string> DrakeMounts;
@@ -88,7 +88,7 @@ namespace Beastkeeper
             AnimalPull = Bind("3 - Catching wild animals", "AnimalStrength", 1f,
                 new ConfigDescription("How hard animals pull back (multiplier). Bigger animals pull harder.", new AcceptableValueRange<float>(0.1f, 5f)));
             HandFeeding = Bind("3 - Catching wild animals", "HandFeeding", true,
-                "Look at a tamed animal and use any food from your hotbar: it eats from your hand and heals.");
+                "Look at a tamed animal and use any food from your hotbar: near a Beast Totem it eats from your hand and heals.");
             HandFeedCooldown = Bind("3 - Catching wild animals", "HandFeedCooldown", 15f,
                 new ConfigDescription("Seconds before the same animal can be hand fed again (by anyone).", new AcceptableValueRange<float>(0f, 600f)));
             TrapRadius = Bind("5 - Leg-hold trap", "CatchRadius", 1.3f,
@@ -126,10 +126,12 @@ namespace Beastkeeper
             WanderRadius = Bind("7 - Beast totem", "WanderRadius", 6f,
                 new ConfigDescription("Animals tamed with a halter graze this far around the spot where you left them (when no totem is near).", new AcceptableValueRange<float>(1f, 50f)));
 
-            TamedHealth = Bind("8 - Defending", "TamedHealth", "120,500,350,1300,1100",
+            TamedHealth = Bind("8 - Defending", "TamedHealth", "120,270,395,460,400",
                 "Lowest health of a tamed animal per tier (Leather, Troll, Wolf, Lox, Carapace), before stars; the game's own is kept when higher.");
             TamedDamage = Bind("8 - Defending", "TamedDamage", "2.5,1.2,2.5,1.3,1.6",
                 "How much harder a tamed animal hits than the game's own, per tier (Leather, Troll, Wolf, Lox, Carapace).");
+            SaddleArmor = Bind("8 - Defending", "SaddleArmor", "2,6,16,21,25,20",
+                "Armor a saddle gives the animal wearing it, per saddle tier (Leather, Troll, Wolf, Lox, Carapace, Drake); it works like a player's armor.");
             TamedDefend = Bind("8 - Defending", "Enabled", true,
                 "Tamed animals that can fight (wolf, boar, bear, asksvin, lox...) attack enemies that come near, even while tied, kept by a totem or on your lasso. Off: they stay calm.");
             DefendRange = Bind("8 - Defending", "Range", 15f,

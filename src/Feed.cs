@@ -4,8 +4,8 @@ using UnityEngine;
 
 namespace Beastkeeper
 {
-    // Feeding by hand: look at a tamed animal and use any food from your hotbar. It eats from your hand and heals
-    // (as much as the food's health, at least MinHeal). It also counts as fed, so the game's tamed animals can
+    // Feeding by hand: look at a tamed animal near a Beast Totem (see Rest) and use any food from your hotbar: it eats
+    // from your hand and heals 25% to 40% of its health. It also counts as fed, so the game's tamed animals can
     // breed and hares breed too (see Breed). Each animal eats once every HandFeedCooldown seconds, from anyone.
     // Wild animals can't be fed by hand: they are tamed only with a halter.
     [HarmonyPatch]
@@ -57,6 +57,12 @@ namespace Beastkeeper
             if (nv == null || !nv.IsValid()) return true;
 
             string name = c.GetHoverName();
+            // only near a Beast Totem (2026-11-21, user): away from one the food is kept
+            if (!Rest.NearTotem(c))
+            {
+                p.Message(MessageHud.MessageType.Center, name + " eats from your hand only near a Beast Totem.");
+                return false;
+            }
             float wait = nv.GetZDO().GetFloat(FedAtKey, -9999f) + Plugin.HandFeedCooldown.Value - Now();
             if (wait > 0f)
             {

@@ -8,7 +8,7 @@
 
 *Freyr rode the golden boar Gullinbursti, and Thor's goats pulled his wagon across the sky. In Valheim the old gods are far away, but the beasts are still here. Bring a rope and some patience.*
 
-Catch animals with a lasso, tame them with a halter, saddle them and ride them. Tie them up, keep them near home with a totem, heal them with food, breed hares in every colour, and hatch drakes from Moder's eggs to fly them.
+Catch animals with a lasso, tame them with a halter, saddle them and ride them. Tie them up, keep them near home with a totem where they heal, breed hares in every colour, and hatch drakes from Moder's eggs to fly them.
 
 **Learning as you go.** Hugin, the game's raven, lands with a short tip the first time you meet a few key parts (a lasso in your bag, a totem nearby, a grown drake). Each tip comes once and stays in the compendium, under the raven's tab. If you turned the raven's tips off in the game's settings, he stays away. The console command `bk_raven <tip>` calls him back, and the **?** in the totem window opens a page of short tips on every part.
 
@@ -61,7 +61,7 @@ Any lasso holds an animal that is already tamed, whatever its tier. The **Beast 
 
 **Keep them home.** Build a Beast Totem. Its animals graze in an 8 m circle around it (shown while you place or look at the totem; nothing inside it stops you building) and those that wander off come back into it. Press **E** on a totem to **store** your favorite mount inside it (it must be close by) and **take it out** later at any totem, with its saddle, stars, name and health. Other tamed animals within 25 m of the totem can rest inside it too, up to **10 of each kind** (10 drakes, 10 wolves...; not another player's favorite, and your favorite doesn't count); they stay with you, so you take them out at any totem. Saddle bags are emptied on the ground first. The window is one list: your favorite first, marked in gold, then the animals in the totems and the ones by it. **Tabs** show all of them or one kind (with how many of that kind are stored), and filters show only 0, 1 or 2 stars or only the glowing ones. Every name has a Rename button, and a drake's element and "glows" are written on its line. Choosing another favorite while yours rests in a totem moves the old one to these other animals.
 
-**Heal.** Feed a tamed animal any food. It heals 25–40% of its health over 10 seconds (more for better food).
+**Heal.** Tamed animals heal only within 60 m of a Beast Totem: on their own (from nothing to full in 5 minutes), or faster when you feed one any food by hand (25–40% of its health over 10 seconds, more for better food). Away from a totem they don't heal and won't eat from your hand: bring them home.
 
 **Defend.** Tamed animals that can fight (wolf, boar, bear, asksvin, lox) attack enemies that come within 15 m, even while tied, kept by a totem or on your lasso. Deer, hens and hares keep away.
 
@@ -102,6 +102,8 @@ The details:
 
 **Tougher tamed animals.** A tamed animal has more health and hits harder than a wild one of its kind (more for higher tiers, more with stars), so it holds its own against the enemies of its own biome.
 
+**Saddles protect.** A saddle gives armor to the animal wearing it, like a player's armor (Leather 2, Troll 6, Wolf 16, Lox 21, Carapace 25, Drake Saddle 20): it takes a lot off weak hits and a little off strong ones. A saddled animal is never caught by a **sneak attack** (the game's x4 hit on a creature that isn't alert). With the saddle of its own tier, a tamed animal takes about **5 hits** of its biome's strong enemy before it falls (a drake with the Drake Saddle takes about 6 Deathsquito stings).
+
 ### Works with
 
 - **Impactful Skills:** its taming options (taming speed, hand feeding, taming bar) are turned off automatically, so they don't fight with the halter.
@@ -116,7 +118,7 @@ Edit `BepInEx/config/felih.Beastkeeper.cfg` (or press F1 in game with Configurat
 
 *Freyr cavalgava o javali dourado Gullinbursti, e os bodes de Thor puxavam a carroça dele pelo céu. Em Valheim os deuses antigos estão longe, mas os bichos continuam aqui. Traga uma corda e um pouco de paciência.*
 
-Capture animais com um laço, dome com um cabresto, coloque sela e monte. Amarre, mantenha perto de casa com um totem, cure com comida, crie lebres de todas as cores e choque drakes dos ovos da Moder para voar neles.
+Capture animais com um laço, dome com um cabresto, coloque sela e monte. Amarre, mantenha perto de casa com um totem onde eles se curam, crie lebres de todas as cores e choque drakes dos ovos da Moder para voar neles.
 
 **Aprendendo no caminho.** Hugin, o corvo do jogo, aparece com uma dica curta na primeira vez que você encontra algumas partes-chave (um laço na bolsa, um totem por perto, um drake adulto). Cada dica vem uma vez e fica no compêndio, na aba do corvo. Se você desligou as dicas do corvo nas opções do jogo, ele não aparece. O comando de console `bk_raven <dica>` chama ele de novo, e o **?** na janela do totem abre uma página de dicas curtas sobre cada parte.
 
@@ -169,7 +171,7 @@ Qualquer laço segura um animal já domado, de qualquer tier. O **Totem das Fera
 
 **Manter em casa.** Construa um Totem das Feras. Os animais dele pastam num círculo de 8 m em volta (aparece quando você posiciona ou olha pro totem; nada dentro dele impede a construção) e os que se afastam voltam pra dentro. Aperte **E** num totem para **guardar** a sua montaria favorita dentro dele (ela precisa estar perto) e **tirar** depois em qualquer totem, com sela, estrelas, nome e vida. Outros animais domados a até 25 m do totem também podem descansar dentro dele, até **10 de cada tipo** (10 drakes, 10 lobos...; menos a favorita de outro jogador, e a sua favorita não conta); eles ficam com você, então você tira em qualquer totem. Os alforjes são esvaziados no chão antes. A janela é uma lista só: a sua favorita primeiro, destacada em dourado, depois os animais nos totens e os que estão perto dele. **Abas** mostram todos ou um tipo (com quantos daquele tipo estão guardados), e filtros mostram só 0, 1 ou 2 estrelas ou só os que brilham. Todo nome tem um botão Rename, e o elemento do drake e "glows" aparecem escritos na linha dele. Escolher outra favorita com a sua guardada no totem passa a antiga para esses outros animais.
 
-**Curar.** Dê qualquer comida a um animal domado. Ele recupera 25–40% da vida em 10 segundos (mais com comida melhor).
+**Curar.** Animais domados só se curam a até 60 m de um Totem de Feras: sozinhos (de zero a cheio em 5 minutos), ou mais rápido quando você dá qualquer comida na mão (25–40% da vida em 10 segundos, mais com comida melhor). Longe de um totem eles não se curam nem comem da sua mão: leve-os para casa.
 
 **Defender.** Animais domados que sabem lutar (lobo, javali, urso, asksvin, lox) atacam inimigos que chegam a 15 m, mesmo amarrados, perto de um totem ou no seu laço. Cervos, galinhas e lebres ficam longe.
 
@@ -209,6 +211,8 @@ Os detalhes:
 - Ovos: 35% dos drakes nascem com 1 estrela e 10% com 2. Cada estrela dá mais dano, velocidade e tempo de voo.
 
 **Animais domados mais fortes.** Um animal domado tem mais vida e bate mais forte que um selvagem da mesma espécie (mais nos tiers altos, mais com estrelas), então aguenta os inimigos do próprio bioma.
+
+**Selas protegem.** A sela dá armadura ao animal que a usa, como a armadura do jogador (Leather 2, Troll 6, Wolf 16, Lox 21, Carapace 25, Sela de Drake 20): tira bastante dos golpes fracos e pouco dos fortes. Um animal com sela nunca toma **ataque furtivo** (o golpe x4 do jogo numa criatura que não está em alerta). Com a sela do próprio tier, um animal domado aguenta umas **5 porradas** do inimigo forte do seu bioma antes de cair (um drake com a Sela de Drake aguenta umas 6 picadas de mosquito).
 
 ### Funciona com
 

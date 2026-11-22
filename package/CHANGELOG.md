@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.8.5
+- Saddles protect: a saddle gives armor to the animal wearing it, like a player's armor (Leather 2, Troll 6, Wolf 16, Lox 21, Carapace 25, Drake Saddle 20). / Selas protegem: a sela dá armadura ao animal que a usa, como a armadura do jogador (Leather 2, Troll 6, Wolf 16, Lox 21, Carapace 25, Sela de Drake 20).
+- A saddled animal is never caught by a sneak attack (the game's x4 hit: one Deathsquito sting took 324 of a drake's 350 health). / Um animal com sela nunca toma ataque furtivo (o golpe x4 do jogo: uma picada de mosquito tirava 324 dos 350 de vida de um drake).
+- Tamed health reworked so an animal with the saddle of its own tier takes about 5 hits of its biome's strong enemy: Leather 120, Troll 270, Wolf 395, Lox 460, Carapace 400 (the game's own health is kept when higher: bear 500, lox 1000, asksvin 800). / Vida dos domados refeita para que um animal com a sela do próprio tier aguente umas 5 porradas do inimigo forte do bioma: Leather 120, Troll 270, Wolf 395, Lox 460, Carapace 400 (a vida do próprio jogo fica quando é maior: urso 500, lox 1000, asksvin 800).
+- Tamed animals heal only within 60 m of a Beast Totem: on their own from nothing to full in 5 minutes (tied, ridden or grazing), and by hand feeding. Away from a totem they don't heal and won't eat from your hand (the food is kept). / Animais domados só se curam a até 60 m de um Totem de Feras: sozinhos de zero a cheio em 5 minutos (amarrados, montados ou pastando), e comendo da mão. Longe de um totem eles não se curam nem comem da sua mão (a comida não é gasta).
+
 ## 0.8.1
 - Performance: checking whether you hold a lasso or a saddle is much lighter, and the drake walk no longer freezes the game now and then (its file check runs in the background). / Desempenho: checar se você segura um laço ou uma sela ficou bem mais leve, e o andar do drake não trava mais o jogo de vez em quando (a checagem do arquivo roda em segundo plano).
 - README: the "Troll" tier means tools made of troll hide, for the bear (trolls can't be tamed), and a step-by-step guide to hatching a drake. / README: a tier "Troll" são ferramentas de couro de troll, para o urso (trolls não podem ser domados), e um passo a passo para chocar um drake.
