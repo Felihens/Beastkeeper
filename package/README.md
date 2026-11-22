@@ -61,6 +61,8 @@ Any lasso holds an animal that is already tamed, whatever its tier. The **Beast 
 
 **Keep them home.** Build a Beast Totem. Its animals graze in an 8 m circle around it (shown while you place or look at the totem; nothing inside it stops you building) and those that wander off come back into it. Press **E** on a totem to **store** your favorite mount inside it (it must be close by) and **take it out** later at any totem, with its saddle, stars, name and health. Other tamed animals within 25 m of the totem can rest inside it too, up to **10 of each kind** (10 drakes, 10 wolves...; not another player's favorite, and your favorite doesn't count); they stay with you, so you take them out at any totem. Saddle bags are emptied on the ground first. The window is one list: your favorite first, marked in gold, then the animals in the totems and the ones by it. **Tabs** show all of them or one kind (with how many of that kind are stored), and filters show only 0, 1 or 2 stars or only the glowing ones. Every name has a Rename button, and a drake's element and "glows" are written on its line. Choosing another favorite while yours rests in a totem moves the old one to these other animals.
 
+**Into the light.** An animal going into a totem shines white, shrinks into a ball of light and rises in a pillar to the sky; one coming out comes down the same way. Everyone nearby with the mod sees and hears it.
+
 **Heal.** Tamed animals heal only within 60 m of a Beast Totem: on their own (from nothing to full in 5 minutes), or faster when you feed one any food by hand (25–40% of its health over 10 seconds, more for better food). Away from a totem they don't heal and won't eat from your hand: bring them home.
 
 **Defend.** Tamed animals that can fight (wolf, boar, bear, asksvin, lox) attack enemies that come within 15 m, even while tied, kept by a totem or on your lasso. Deer, hens and hares keep away.
@@ -97,7 +99,7 @@ The details:
 - Frost: a **beam of ice** for 1 s that goes exactly where you aim, every moment; your aim turns slowly while it lasts. The longer it stays on the same enemy, the harder it hits (a little more than the other elements in all). The first enemy it hits is wrapped in a small **blizzard** for 6 s that grows while the beam keeps hitting: it and every enemy within 5 m of it slow down, to half speed when full. The blizzard has its own 6 s wait, shown by a second icon next to the attack's, and if that enemy dies the next hit makes a new blizzard at once (only when you ride the drake).
 - Stone: a **stone spike** bursts out of the ground where you aim, with smaller stones around it, and sinks back after 1.5 s. Hold left-click to **charge** it (bigger, harder hit). Enemies near its centre are thrown far; those at the edge are only pushed. Lightning has an **aim help**: it falls on the enemy you were aiming at. The drake keeps moving at half speed while it attacks, and the icon at the bottom right shows when it can attack again.
 - On the ground it walks at full speed at once, sideways a bit slower. Unridden, it takes off and fights back with its own element (frost with the beam, stone with the spike under its foe).
-- A drake won't go out over deep water (the sea is the serpent's): it stops at the shore, flying or on foot.
+- **Over the sea.** A drake fears the sea (it's the serpent's) and stops at the shore. Feed it **cooked serpent meat** (5 minutes) or **serpent stew** (15 minutes) by hand at a Beast Totem and it dares to fly out over deep water: an icon shows the time left, which only runs over deep water, with warnings at 1 minute, 30 and 10 seconds. When its courage runs out over the sea it dives to the waves and throws you in, then flies low beside you while you swim; nobody can get back on it there until it is fed again. Reach land and it is an ordinary drake again. If you die at sea while it follows you, it goes into your totems (as your favorite, or with your other stored animals even past the limit). Config `11 - Drake / OverSea`: Offering (this), Off (never over the sea) or Free (no limit).
 - Eggs: 35% of the drakes hatch with 1 star and 10% with 2. Each star means more damage, speed and flight time.
 
 **Tougher tamed animals.** A tamed animal has more health and hits harder than a wild one of its kind (more for higher tiers, more with stars), so it holds its own against the enemies of its own biome.
@@ -110,7 +112,7 @@ The details:
 
 ### Config
 
-Edit `BepInEx/config/felih.Beastkeeper.cfg` (or press F1 in game with Configuration Manager). Only a few things are there: turning the mod on or off, the favorite mount key, whether tamed animals defend you, the camera shake, the lists of animals (for creatures from other mods) and a detailed log for bug reports.
+Edit `BepInEx/config/felih.Beastkeeper.cfg` (or press F1 in game with Configuration Manager). Only a few things are there: turning the mod on or off, the favorite mount key, whether tamed animals defend you, whether a drake flies over the sea, the camera shake, the lists of animals (for creatures from other mods) and a detailed log for bug reports.
 
 ---
 
@@ -171,6 +173,8 @@ Qualquer laço segura um animal já domado, de qualquer tier. O **Totem das Fera
 
 **Manter em casa.** Construa um Totem das Feras. Os animais dele pastam num círculo de 8 m em volta (aparece quando você posiciona ou olha pro totem; nada dentro dele impede a construção) e os que se afastam voltam pra dentro. Aperte **E** num totem para **guardar** a sua montaria favorita dentro dele (ela precisa estar perto) e **tirar** depois em qualquer totem, com sela, estrelas, nome e vida. Outros animais domados a até 25 m do totem também podem descansar dentro dele, até **10 de cada tipo** (10 drakes, 10 lobos...; menos a favorita de outro jogador, e a sua favorita não conta); eles ficam com você, então você tira em qualquer totem. Os alforjes são esvaziados no chão antes. A janela é uma lista só: a sua favorita primeiro, destacada em dourado, depois os animais nos totens e os que estão perto dele. **Abas** mostram todos ou um tipo (com quantos daquele tipo estão guardados), e filtros mostram só 0, 1 ou 2 estrelas ou só os que brilham. Todo nome tem um botão Rename, e o elemento do drake e "glows" aparecem escritos na linha dele. Escolher outra favorita com a sua guardada no totem passa a antiga para esses outros animais.
 
+**Para a luz.** Um animal que entra num totem brilha branco, vira uma bola de luz e sobe num pilar até o céu; um que sai desce do mesmo jeito. Todo mundo por perto com o mod vê e ouve.
+
 **Curar.** Animais domados só se curam a até 60 m de um Totem de Feras: sozinhos (de zero a cheio em 5 minutos), ou mais rápido quando você dá qualquer comida na mão (25–40% da vida em 10 segundos, mais com comida melhor). Longe de um totem eles não se curam nem comem da sua mão: leve-os para casa.
 
 **Defender.** Animais domados que sabem lutar (lobo, javali, urso, asksvin, lox) atacam inimigos que chegam a 15 m, mesmo amarrados, perto de um totem ou no seu laço. Cervos, galinhas e lebres ficam longe.
@@ -207,7 +211,7 @@ Os detalhes:
 - Gelo: um **raio de gelo** de 1 s que vai exatamente onde você mira, a todo momento; a mira gira devagar enquanto ele dura. Quanto mais tempo no mesmo inimigo, mais forte ele bate (no total, um pouco mais que os outros elementos). O primeiro inimigo atingido fica envolto numa pequena **nevasca** por 6 s que cresce enquanto o raio continua acertando: ele e todo inimigo a até 5 m dele ficam mais lentos, na metade da velocidade quando ela está cheia. A nevasca tem a própria espera de 6 s, mostrada num segundo ícone ao lado do ícone do ataque, e se esse inimigo morrer o próximo acerto já cria uma nova nevasca (só com você montado no drake).
 - Pedra: um **espinho de pedra** sai do chão onde você mira, com pedras menores em volta, e afunda de novo depois de 1,5 s. Segure o botão esquerdo para **carregar** (maior, bate mais forte). Inimigos perto do centro voam longe; os da borda só são empurrados. O raio tem **auxílio de mira**: cai no inimigo que você estava mirando. O drake continua se movendo a meia velocidade enquanto ataca, e o ícone no canto inferior direito mostra quando pode atacar de novo.
 - No chão ele anda na velocidade máxima desde o primeiro passo, de lado um pouco mais devagar. Sem ninguém montado, ele levanta voo e revida com o próprio elemento (gelo com o raio, pedra com o espinho debaixo do inimigo).
-- Um drake não vai para cima de água funda (o mar é da serpente): ele para na beira, voando ou a pé.
+- **Sobre o mar.** O drake tem medo do mar (é da serpente) e para na beira. Dê **carne de serpente cozida** (5 minutos) ou **ensopado de serpente** (15 minutos) na mão perto de um Totem de Feras e ele ousa voar sobre água funda: um ícone mostra o tempo que falta, que só corre sobre água funda, com avisos a 1 minuto, 30 e 10 segundos. Quando a coragem acaba sobre o mar ele mergulha até as ondas e te joga na água, e depois voa baixo do seu lado enquanto você nada; ninguém monta nele ali até ele comer de novo. Chegando em terra ele volta a ser um drake normal. Se você morrer no mar com ele te seguindo, ele vai para os seus totens (como favorito, ou com os outros animais guardados, mesmo passando do limite). Configuração `11 - Drake / OverSea`: Offering (assim), Off (nunca sobre o mar) ou Free (sem limite).
 - Ovos: 35% dos drakes nascem com 1 estrela e 10% com 2. Cada estrela dá mais dano, velocidade e tempo de voo.
 
 **Animais domados mais fortes.** Um animal domado tem mais vida e bate mais forte que um selvagem da mesma espécie (mais nos tiers altos, mais com estrelas), então aguenta os inimigos do próprio bioma.
@@ -220,7 +224,7 @@ Os detalhes:
 
 ### Configuração
 
-Edite `BepInEx/config/felih.Beastkeeper.cfg` (ou aperte F1 no jogo com o Configuration Manager). Só tem o essencial: ligar ou desligar o mod, a tecla da montaria favorita, se os animais domados defendem você, o tremor da câmera, as listas de animais (para criaturas de outros mods) e um log detalhado para relatar erros.
+Edite `BepInEx/config/felih.Beastkeeper.cfg` (ou aperte F1 no jogo com o Configuration Manager). Só tem o essencial: ligar ou desligar o mod, a tecla da montaria favorita, se os animais domados defendem você, se o drake voa sobre o mar, o tremor da câmera, as listas de animais (para criaturas de outros mods) e um log detalhado para relatar erros.
 
 ---
 

@@ -11,7 +11,7 @@ namespace Beastkeeper
     {
         public const string GUID = "felih.Beastkeeper";
         public const string NAME = "Beastkeeper";
-        public const string VERSION = "0.8.5";
+        public const string VERSION = "0.8.6";
 
         internal static ManualLogSource Log;
         internal static Plugin Instance;
@@ -42,6 +42,7 @@ namespace Beastkeeper
         internal static ConfigEntry<float> DefendRange, ChaseLimit, FavoriteFollow;
         internal static ConfigEntry<KeyboardShortcut> CallKey, OrderKey;
         internal static ConfigEntry<string> DrakeMounts;
+        internal static ConfigEntry<string> DrakeOverSea;
         internal static ConfigEntry<float> DrakeSize, DrakeSpeed, DrakeSprintSpeed, DrakeFlightSeconds, DrakeRestSeconds, DrakeMaxAltitude;
         internal static ConfigEntry<bool> DrakeAttackInAir, DrakeEggNeedsFire, RiderMotionOn, DrakeSpareParty, DrakeEarthRicochet, DrakeEarthCrater, DrakeEarthRoll, DrakeAttackPreview;
         internal static ConfigEntry<int> DrakeFrostShards, DrakeMaxNear;
@@ -156,6 +157,8 @@ namespace Beastkeeper
                 new ConfigDescription("How long a drake flies higher than 3 m before it's tired and glides down (seconds).", new AcceptableValueRange<float>(5f, 600f)));
             DrakeRestSeconds = Bind("11 - Drake", "RestSeconds", 5f,
                 new ConfigDescription("How long a tired drake needs near the ground to rest fully (seconds). Hand feeding rests it at once.", new AcceptableValueRange<float>(1f, 600f)));
+            DrakeOverSea = Bind("11 - Drake", "OverSea", "Offering",
+                new ConfigDescription("Can a drake fly out over the sea (the serpent's)? Off = never, it stops at the shore. Offering = only after you feed it serpent (cooked meat or stew) by hand at a Beast Totem, for a limited time over deep water. Free = whenever you like, without limit.", new AcceptableValueList<string>("Off", "Offering", "Free")));
             DrakeMaxAltitude = Bind("11 - Drake", "MaxAltitude", 35f,
                 new ConfigDescription("The highest a ridden drake flies above the ground or the sea (metres).", new AcceptableValueRange<float>(5f, 300f)));
             DrakeAttackInAir = Bind("11 - Drake", "AttackInAir", false,
@@ -292,7 +295,7 @@ namespace Beastkeeper
         {
             "1 - General/Enabled", "10 - Favorite mount/CallKey", "8 - Defending/Enabled",
             "4 - Rope look/ShakeStrength", "9 - Debug/DetailedLog",
-            "2 - Lasso/ExtraAnimals", "2 - Lasso/NotAnimals", "6 - Riding/NotRideable",
+            "2 - Lasso/ExtraAnimals", "2 - Lasso/NotAnimals", "6 - Riding/NotRideable", "11 - Drake/OverSea",
         };
         private ConfigFile _fixed;
 

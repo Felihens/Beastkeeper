@@ -1121,6 +1121,7 @@ namespace Beastkeeper
         private void Ride(Player p)
         {
             if (Riding != null) return;
+            if (SeaRescue.RefuseRide(p, _c)) return;   // a drake without sea courage: not over deep water
             if (!_nv.IsOwner()) _nv.ClaimOwnership();
             if (Leash.Holder(_nv) != 0L) Leash.Release(_c, true);   // off the lasso first
             Tie.Untie(_c);                                           // and off the post

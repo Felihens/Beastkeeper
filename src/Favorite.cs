@@ -159,6 +159,7 @@ namespace Beastkeeper
             Player p = Player.m_localPlayer;
             if (p == null) return;
             Register();
+            Glow.Register();   // so this game sees other players' animals go into and come out of totems
             CheckAsk(p);
             if (Time.time > _nextSweep) { _nextSweep = Time.time + 2f; SendOldAway(p); }
 
@@ -543,12 +544,12 @@ namespace Beastkeeper
             Spawn(p, t, prefab, at, facing, gen, false);
         }
 
-        private static void Spawn(Player p, Template t, GameObject prefab, Vector3 at, Quaternion facing, long gen, bool keepSaddle)
+        private static Character Spawn(Player p, Template t, GameObject prefab, Vector3 at, Quaternion facing, long gen, bool keepSaddle)
         {
             GameObject go = UnityEngine.Object.Instantiate(prefab, at, facing);
             Character c = go.GetComponent<Character>();
             ZNetView nv = Leash.View(c);
-            if (c == null || nv == null || !nv.IsValid()) { p.Message(MessageHud.MessageType.Center, "Your favorite mount couldn't come."); return; }
+            if (c == null || nv == null || !nv.IsValid()) { p.Message(MessageHud.MessageType.Center, "Your favorite mount couldn't come."); return null; }
 
             ZDO z = nv.GetZDO();
             if (t.Level > 1) c.SetLevel(t.Level);
@@ -569,6 +570,7 @@ namespace Beastkeeper
             c.SetTamed(true);
             if (t.Halter) Home.Set(c, at);
             Plugin.Debug("[favorite] brought back a " + t.Prefab + " (stars " + t.Level + ") at a totem");
+            return c;
         }
 
         // ------------------------------------------------------------ the totem as a safe
@@ -766,7 +768,7 @@ namespace Beastkeeper
             SetDead(p, false);
             string name = t.Name();
             Plugin.Debug("[favorite] stored " + name + " in a totem");
-            ZNetScene.instance.Destroy(c.gameObject);
+            Glow.Leave(c, true);   // it turns to light and leaves (and is removed from the world at the end)
             Effects.Shake(0.4f);
             p.Message(MessageHud.MessageType.Center, name + " rests inside the Beast Totem.");
         }
@@ -787,7 +789,7 @@ namespace Beastkeeper
             SetStored(p, false);
             SetDead(p, false);
             Vector3 at = SpotNear(totem.transform.position, Flat(p.transform.position - totem.transform.position));
-            Spawn(p, t, prefab, at, Quaternion.LookRotation(Flat(p.transform.position - at)), gen, true);
+            Glow.Arrive(Spawn(p, t, prefab, at, Quaternion.LookRotation(Flat(p.transform.position - at)), gen, true));
             p.Message(MessageHud.MessageType.Center, t.Name() + " comes out of the Beast Totem.");
             Effects.Shake(0.4f);
         }
@@ -961,6 +963,38 @@ namespace Beastkeeper
             return string.Join(", ", d.ToArray());
         }
 
+        // the rider died at sea while this drake followed them (SeaRescue): it goes into their totems from wherever
+        // it is, as their favorite or with the other stored animals, even past StableMax. False = it can't (another
+        // player's favorite).
+        internal static bool StoreFromSea(Player p, Character c)
+        {
+            ZDO z = Zdo(c);
+            ZNetView nv = Leash.View(c);
+            if (p == null || z == null || nv == null || !nv.IsValid()) return false;
+            long owner = z.GetLong(FavOwnerKey, 0L);
+            if (owner != 0L && owner != p.GetPlayerID()) return false;
+            if (!nv.IsOwner()) nv.ClaimOwnership();
+            string name = c.GetHoverName();
+            Template fav = Get(p);
+            if (fav != null && z.GetLong(IdKey, 0L) == fav.Id && !Stored(p))
+            {
+                p.m_customData[WorldKey("favorite")] = Capture(c, fav.Id).Save();
+                SetStored(p, true);
+                SetDead(p, false);
+            }
+            else
+            {
+                System.Collections.Generic.List<Template> list = StableList(p);
+                list.Add(Capture(c, 0L));
+                SaveStable(p, list);
+            }
+            Bags.SpillNow(c);
+            Tie.Untie(c);
+            Plugin.Debug("[stable] " + name + " went to the totems: its rider died at sea");
+            p.Message(MessageHud.MessageType.Center, name + " rises in a beam of light: it waits for you in the Beast Totem.");
+            return true;
+        }
+
         internal static void StoreInStable(Player p, Totem totem, Character c)
         {
             string why = StableRefusal(p, c, totem);
@@ -978,7 +1012,7 @@ namespace Beastkeeper
             Bags.SpillNow(c);
             Tie.Untie(c);
             Plugin.Debug("[stable] stored " + t.Save() + " (" + list.Count + "/" + StableMax + ")");
-            ZNetScene.instance.Destroy(c.gameObject);
+            Glow.Leave(c, true);   // it turns to light and leaves (and is removed from the world at the end)
             Effects.Shake(0.4f);
             p.Message(MessageHud.MessageType.Center, name + " rests inside the Beast Totem.");
         }
@@ -1013,6 +1047,7 @@ namespace Beastkeeper
             c.SetTamed(true);
             if (t.Halter) Home.Set(c, at);
             Plugin.Debug("[stable] took out " + t.Save() + " (" + list.Count + "/" + StableMax + " left)");
+            Glow.Arrive(c);
             Effects.Shake(0.4f);
             p.Message(MessageHud.MessageType.Center, t.Name() + " comes out of the Beast Totem.");
         }

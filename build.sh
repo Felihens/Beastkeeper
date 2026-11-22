@@ -22,6 +22,7 @@ mkdir -p bin
   -resource:res/drake_mask.png,Beastkeeper.drake_mask.png \
   -resource:res/riders.json,Beastkeeper.riders.json \
   -resource:res/drake_walk.json,Beastkeeper.drake_walk.json \
+  -resource:res/glow.txt,Beastkeeper.glow.txt \
   -recurse:'src\*.cs'
 
 if [ "$1" != "nocopy" ]; then

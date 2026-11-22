@@ -5,7 +5,7 @@ using UnityEngine;
 namespace Beastkeeper
 {
     // Hugin teaches the mod (user, 2026-11-17): the game's own raven comes with a short tip the first time you meet
-    // a few things (a lasso in your bag, a totem nearby, a grown drake). Each tip comes
+    // a few things (a lasso or serpent meat in your bag, a totem nearby, a grown drake). Each tip comes
     // once per character, is kept in the game's compendium (the raven's tab), and stays away when the player turned
     // the raven's tips off in the game's settings. The totem window's "?" and the console command bk_raven <tip>
     // bring one back on purpose.
@@ -31,6 +31,7 @@ namespace Beastkeeper
                     new Tip("lasso", "The lasso", "A rope, wanderer! Equip it, hold right-click to swing the loop and left-click to throw it at a calm beast, then keep pressing S to pull it in. Look at a beast on your rope and press a halter's hotbar key to tame it."),
                     new Tip("totem", "The Beast Totem", "Tamed beasts graze in the totem's circle and come back when they stray. Press E on it to rest your animals inside and take them out at any totem."),
                     new Tip("egg", "A sleeping egg", "This egg sleeps, but it can wake. Offer it something that carries an element: the cold of frost, the heat of fire, the foulness of a swamp, the weight of stone or the roar of a storm. What you offer, it becomes. Then keep it warm by a fire."),
+                    new Tip("sea", "A drake over the sea", "Drakes fear the sea, wanderer: the serpents rule the deep water. But feed your drake the serpent's own flesh, cooked or in a stew, from your hand at a Beast Totem, and it will dare to fly over the waves for a while. Mind the time: when its courage fails, it throws you into the sea."),
                     new Tip("nest", "A drake nest", "Two grown drakes want a nest. Build a straw rug near them and every few days they lay an egg on it."),
                 };
                 return _all;
@@ -110,6 +111,10 @@ namespace Beastkeeper
                 if (inv != null)
                     foreach (ItemDrop.ItemData item in inv.GetAllItems())
                         if (Lasso.IsLasso(item)) { Show(p, "lasso"); break; }
+                // serpent meat in your bag: Hugin tells you a drake dares to fly over the sea for it (2026-11-22, user)
+                if (inv != null && SeaCourage.Mode == SeaCourage.Offering)
+                    foreach (ItemDrop.ItemData item in inv.GetAllItems())
+                        if (item != null && item.m_dropPrefab != null && SeaCourage.IsSerpent(item.m_dropPrefab.name)) { Show(p, "sea"); break; }
                 _pieces.Clear();
                 Piece.GetAllPiecesInRadius(p.transform.position, 12f, _pieces);
                 foreach (Piece pc in _pieces)

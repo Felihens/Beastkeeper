@@ -21,6 +21,7 @@ namespace Beastkeeper
             ZNetView nv = Leash.View(c);
             if (nv == null || nv.GetZDO() == null) return;
             nv.Register<float>(Rpc, (sender, heal) => Eat(c, nv, heal));
+            if (Drake.Is(c)) SeaCourage.RegisterOn(c, nv);
         }
 
         private static float Now() { return ZNet.instance != null ? (float)ZNet.instance.GetTimeSeconds() : Time.time; }
@@ -73,9 +74,14 @@ namespace Beastkeeper
             float share = Mathf.Lerp(HealLow, HealHigh, Mathf.InverseLerp(10f, 60f, item.m_shared.m_food));
             float heal = c.GetMaxHealth() * share;
             float missing = c.GetMaxHealth() - c.GetHealth();
+            float sea = Drake.Is(c) ? SeaCourage.FoodSeconds(item) : 0f;   // serpent gives a drake courage over the sea
+            float had = sea > 0f ? SeaCourage.Left(c) : 0f;
             (inventory ?? p.GetInventory()).RemoveOneItem(item);
             nv.InvokeRPC(Rpc, heal);
-            p.Message(MessageHud.MessageType.Center, name + " eats from your hand" + (missing > 1f ? ": +" + Mathf.RoundToInt(Mathf.Min(heal, missing)) + " health over " + HealSeconds.ToString("0") + " s." : "."));
+            if (sea > 0f) SeaCourage.Feed(nv, sea);
+            string said = name + " eats from your hand" + (missing > 1f ? ": +" + Mathf.RoundToInt(Mathf.Min(heal, missing)) + " health over " + HealSeconds.ToString("0") + " s." : ".");
+            if (sea > 0f) said += "\nIt dares to fly over the sea for " + SeaCourage.Clock(Mathf.Max(sea, had)) + " (only time over deep water counts).";
+            p.Message(MessageHud.MessageType.Center, said);
             return false;
         }
 

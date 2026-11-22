@@ -31,7 +31,8 @@ namespace Beastkeeper
         private static float _jog0 = -1f, _run0 = -1f; // its own walking speeds, put back when you get off
         private static float _acc0 = -1f;              // its own acceleration: on foot under a rider it is at full speed at once
         private const float FootAccel = 100f;
-        private const float DeepWater = 1.2f;          // water deeper than this (metres) is "the sea" for a drake
+        private const float DiveRate = 0.45f;           // how fast a drake whose sea courage ran out dives to the waves (x ClimbShare)
+        internal const float DeepWater = 1.2f;          // water deeper than this (metres) is "the sea" for a drake
         private const float LandAt = 1.2f;             // how close to the ground "down" lands it, in metres
         private static Character _speedOf;
         private static float _nextSave;
@@ -106,6 +107,7 @@ namespace Beastkeeper
                 _air = Mathf.Clamp(saved + Mathf.Max(0f, rested) * Max / Mathf.Max(1f, Plugin.DrakeRestSeconds.Value), 0f, Max);
             }
             _tired = _air < Max * 0.3f;
+            SeaCourage.OnRide(c);
             _speedOf = c;
             _slow = c.m_flySlowSpeed;
             _fast = c.m_flyFastSpeed;
@@ -141,12 +143,13 @@ namespace Beastkeeper
         {
             OffAt = Time.time;
             Save(c);
+            SeaCourage.OnGetOff(c);
             if (_speedOf == c && _slow >= 0f) { c.m_flySlowSpeed = _slow; c.m_flyFastSpeed = _fast; }
             if (_jog0 >= 0f) { c.m_speed = _jog0; c.m_runSpeed = _run0; }
             if (_acc0 >= 0f) c.m_acceleration = _acc0;
             _onFoot = false;
             _speedOf = null;
-            if (c.IsFlying() && Altitude(c) < LowAltitude) c.Land();
+            if (c.IsFlying() && Altitude(c) < LowAltitude && !OverSea(c)) c.Land();   // never onto the sea: it would sink
         }
 
         private static void Save(Character c)
@@ -155,6 +158,7 @@ namespace Beastkeeper
             if (nv == null || !nv.IsValid() || !nv.IsOwner() || ZNet.instance == null) return;
             nv.GetZDO().Set(AirKey, _air);
             nv.GetZDO().Set(AirAtKey, (long)(ZNet.instance.GetTimeSeconds() * 1000.0));
+            SeaCourage.Save(c);
         }
 
         // you can't step off high up: E only works near the ground (a dying drake or a teleport still lets go)
@@ -275,12 +279,20 @@ namespace Beastkeeper
             float alt = Altitude(c);
             bool high = alt > LowAltitude;
             bool sea = OverSea(c);
+            bool brave = SeaCourage.Brave(c);   // fed serpent at a totem (or OverSea = Free): it dares to fly over the sea
             if (sea != _wasSea)
             {
                 _wasSea = sea;
-                if (sea) Say("Sea serpents are watching from below: your drake turns back to the shore.");
+                if (sea && !SeaCourage.Diving) Say(brave ? "Your drake soars out over the sea, seeking vengeance on the serpents below." : "Sea serpents are watching from below: your drake turns back to the shore.");
             }
-            if (sea && alt < LandAt + 1f) up = Mathf.Max(up, 0.5f);   // it keeps clear of the waves
+            SeaCourage.Tick(c, sea, dt);
+            bool diving = SeaCourage.Diving;   // its courage ran out over the sea: it dives to the waves and throws you in
+            if (diving)
+            {
+                up = -DiveRate;
+                if (alt < LandAt + 0.8f) { SeaCourage.ThrowOff(c); return; }
+            }
+            if (sea && !diving && alt < LandAt + 1f) up = Mathf.Max(up, 0.5f);   // it keeps clear of the waves
             if (sea && crouch && alt < LandAt + 1.5f) Say("Your drake can't land on deep water: fly to the shore.");
             // down, close to the ground: it lands
             if (alt < LandAt && crouch && !sea)
@@ -293,9 +305,10 @@ namespace Beastkeeper
 
             // the flight bar: it empties all the time the drake is in the air (same rate walking pace or sprint, high or low)
             // and only fills on the ground. Empty: the drake comes down by itself, lands, and flies again once the bar is full.
-            _air = Mathf.Max(0f, _air - dt);
-            if (_air <= 0f && !_tired) { _tired = true; Say("Your drake is tired: it comes down to rest."); }
-            if (_tired && sea) Say("Your drake is tired: fly to land so it can rest.");
+            // over the sea with courage (or OverSea = Free) the courage is its limit, not the bar
+            if (!(sea && brave)) _air = Mathf.Max(0f, _air - dt);
+            if (_air <= 0f && !_tired && !(sea && diving)) { _tired = true; Say("Your drake is tired: it comes down to rest."); }
+            if (_tired && sea) { if (!brave && !diving) Say("Your drake is tired: fly to land so it can rest."); }
             else if (_tired)
             {
                 up = -0.6f;
@@ -325,10 +338,11 @@ namespace Beastkeeper
             Vector3 flat = Quaternion.LookRotation(fwd) * new Vector3(move.x, 0f, move.z);
             if (flat.sqrMagnitude > 1f) flat.Normalize();
             // it stops at the shore: no flying on towards deep water (looking further ahead the faster it goes)
-            if (flat.sqrMagnitude > 0.01f && SeaAhead(c, flat, Mathf.Max(3f, c.GetVelocity().magnitude * 0.8f)))
+            // diving once its courage is gone you steer freely, so you can glide to whatever land you see (user, 2026-11-22)
+            if (!brave && !diving && flat.sqrMagnitude > 0.01f && SeaAhead(c, flat, Mathf.Max(3f, c.GetVelocity().magnitude * 0.8f)))
             {
                 flat = Vector3.zero;
-                Say("Your drake won't fly out over deep water: it senses sea serpents watching from below.");
+                Say("Your drake won't fly out over deep water: it senses sea serpents watching from below.");   // the user wants this one kept as it was
             }
             Vector3 dir = flat + Vector3.up * up * ClimbShare;
             c.SetLookDir(fwd, 0f);

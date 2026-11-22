@@ -1,0 +1,347 @@
+<title>Totem Light Spots</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Spectral+SC:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* layout: 3D stage on the left, a narrow rail of controls on the right (stacks on phones) */
+:root {
+  --bg: #e9e4dc; --panel: #f5f1ea; --ink: #2b241d; --muted: #6f6357; --line: #d3c9bb;
+  --accent: #8a3b22; --accent-ink: #fff7ef; --stage: #cfc6b8; --field: #fffdf9; --ok: #3d6b35; --warn: #9a5b12;
+  --display: "Spectral SC", Georgia, serif; --body: "IBM Plex Sans", system-ui, sans-serif; --mono: "IBM Plex Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #1d1915; --panel: #26211c; --ink: #ece4d8; --muted: #a89a89; --line: #3a322a;
+  --accent: #d07a52; --accent-ink: #1d1915; --stage: #2e2822; --field: #1a1612; --ok: #8cc47e; --warn: #e2a85a; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #1d1915; --panel: #26211c; --ink: #ece4d8; --muted: #a89a89; --line: #3a322a;
+  --accent: #d07a52; --accent-ink: #1d1915; --stage: #2e2822; --field: #1a1612; --ok: #8cc47e; --warn: #e2a85a; color-scheme: dark }
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--ink); font-family: var(--body); }
+.wrap { height: 100%; display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 12px; box-sizing: border-box;
+  padding-block: 12px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.stage { position: relative; min-height: 0; min-width: 0; background: var(--stage); border-radius: 6px; overflow: hidden; }
+.stage canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+.hint { position: absolute; left: 10px; bottom: 8px; right: 10px; font-size: 12px; color: var(--muted); pointer-events: none; }
+.badge { position: absolute; left: 10px; top: 8px; font: 500 12px var(--mono); color: var(--ink); background: color-mix(in srgb, var(--panel) 80%, transparent); padding: 3px 8px; border-radius: 4px; pointer-events: none; }
+.rail { min-width: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+h1 { font-family: var(--display); font-weight: 600; font-size: 21px; margin: 0; letter-spacing: .02em; text-wrap: balance; }
+.lead { margin: 0; color: var(--muted); font-size: 12.5px; line-height: 1.45; }
+section { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+.label { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 600; }
+.seg { display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px; }
+.seg.four { grid-template-columns: repeat(4, 1fr); }
+button { font: inherit; font-size: 13px; min-height: 36px; padding: 6px 8px; border-radius: 4px; border: 1px solid var(--line); background: var(--field); color: var(--ink); cursor: pointer; }
+button:hover { border-color: var(--accent); }
+button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
+.row { display: flex; gap: 8px; align-items: center; }
+.row > input[type=range] { flex: 1; min-width: 0; height: 28px; }
+.row > label.label { width: 64px; flex: none; text-transform: none; letter-spacing: 0; font-size: 12px; }
+.val { font-family: var(--mono); font-size: 12px; width: 52px; text-align: right; font-variant-numeric: tabular-nums; }
+select { font: inherit; font-size: 13px; min-height: 34px; border-radius: 4px; border: 1px solid var(--line); background: var(--field); color: var(--ink); padding: 0 6px; min-width: 0; flex: 1; }
+.status { font-size: 12px; color: var(--muted); min-height: 1.4em; }
+.status.ok { color: var(--ok); } .status.warn { color: var(--warn); }
+.saved { display: flex; flex-wrap: wrap; gap: 4px; }
+.chip { font: 500 11.5px var(--mono); padding: 2px 7px; border-radius: 10px; border: 1px solid var(--line); color: var(--muted); }
+.chip.on { border-color: var(--ok); color: var(--ok); }
+@media (max-width: 760px) {
+  .wrap { grid-template-columns: 1fr; grid-template-rows: 52vh auto; height: auto; }
+  .rail { overflow: visible; }
+}
+</style>
+
+<div class="wrap">
+  <div class="stage" id="stage">
+    <div class="badge" id="badge">loading…</div>
+    <div class="hint">Drag the light ball to move it · drag the background to turn the view · right drag or two fingers slides · wheel or pinch zooms</div>
+  </div>
+  <div class="rail">
+    <div>
+      <h1>Totem light spots</h1>
+      <p class="lead">Where the ball of light sits when an animal goes into a Beast Totem or comes out of it. The pillar rises from the ball. Each pose has its own spot: the game picks the one that matches what the animal is doing (standing, walking, running; for the drake hovering, on the ground or flying forward) and holds the animal still in it. Every change is saved on its own.</p>
+    </div>
+
+    <section>
+      <span class="label">Animal</span>
+      <div class="row"><label class="label" for="mount">Animal</label><select id="mount"></select></div>
+      <div class="row"><label class="label" for="clip">Pose</label><select id="clip"></select></div>
+    </section>
+
+    <section>
+      <span class="label">Light ball (metres, the animal's own axes)</span>
+      <div class="row"><label class="label" for="px">Side</label><input id="px" type="range" min="-2" max="2" step="0.005"><span class="val" id="pxv"></span></div>
+      <div class="row"><label class="label" for="py">Height</label><input id="py" type="range" min="-3" max="5" step="0.005"><span class="val" id="pyv"></span></div>
+      <div class="row"><label class="label" for="pz">Forward</label><input id="pz" type="range" min="-3" max="3" step="0.005"><span class="val" id="pzv"></span></div>
+      <div class="row"><label class="label" for="ps">Size</label><input id="ps" type="range" min="0.1" max="1.5" step="0.01"><span class="val" id="psv"></span></div>
+      <div class="seg"><button id="bodyMid" title="Put the ball in the middle of the body in this pose">Middle of body</button><button id="centreX" title="Put the ball on the animal's centre line">On centre line</button></div>
+      <button id="toAll" title="Use this spot and size for every pose of this animal">This spot for all poses</button>
+    </section>
+
+    <section>
+      <span class="label">View</span>
+      <div class="seg four"><button data-view="side">Side</button><button data-view="front">Front</button><button data-view="top">Top</button><button data-view="34">3/4</button></div>
+      <div class="row"><label class="label" for="opacity">Animal</label><input id="opacity" type="range" min="15" max="100" value="55"><span class="val" id="opacityV">55%</span></div>
+    </section>
+
+    <section>
+      <div class="status" id="status"></div>
+      <span class="label">Saved poses</span>
+      <div class="saved" id="savedList"></div>
+    </section>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+const MOUNTS = ["Boar", "Wolf", "Deer", "Bjorn", "Lox", "Asksvin", "Seal", "Moose", "Hatchling"];
+const NAMES = { Bjorn: "Bear (Bjorn)", Hatchling: "Drake (Hatchling)", Seal: "Seal", Moose: "Moose" };
+const COLORS = { Boar: 0x7a5a42, Wolf: 0x8a8a8f, Deer: 0xb08a5c, Bjorn: 0x6b4a34, Lox: 0x4a3626, Asksvin: 0x6f8a6a, Seal: 0x8f959c, Moose: 0x6a5240, Hatchling: 0x4a96a8 };
+const DEFAULT_SIZE = 0.45, PILLAR = 12;
+function status(t, cls) { $("status").textContent = t; $("status").className = "status" + (cls ? " " + cls : ""); }
+
+// ---------- scene
+let renderer, scene, camera, controls, ball, halo, pillar, glowLight;
+const stage = $("stage");
+function initScene() {
+  renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+  renderer.outputEncoding = THREE.sRGBEncoding;
+  stage.prepend(renderer.domElement);
+  scene = new THREE.Scene();
+  camera = new THREE.PerspectiveCamera(35, 1, 0.05, 200);
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x8a7a66, 1.0));
+  const sun = new THREE.DirectionalLight(0xffffff, 0.6); sun.position.set(2, 4, 3); scene.add(sun);
+  scene.add(new THREE.GridHelper(10, 40, 0x7a6e5f, 0xa89c8b));
+  // the light as the mod draws it: a warm white ball, a thin pillar rising from it
+  ball = new THREE.Mesh(new THREE.SphereGeometry(0.5, 24, 16), new THREE.MeshBasicMaterial({ color: 0xfff2cc, depthTest: false, transparent: true, opacity: 0.95 }));
+  ball.renderOrder = 12; scene.add(ball);
+  halo = new THREE.Mesh(new THREE.SphereGeometry(0.5, 24, 16), new THREE.MeshBasicMaterial({ color: 0xffd98a, transparent: true, opacity: 0.25, depthWrite: false }));
+  halo.renderOrder = 11; scene.add(halo);
+  pillar = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, PILLAR, 16, 1, true), new THREE.MeshBasicMaterial({ color: 0xfff2cc, transparent: true, opacity: 0.55, depthWrite: false, side: THREE.DoubleSide }));
+  pillar.renderOrder = 10; scene.add(pillar);
+  glowLight = new THREE.PointLight(0xfff2cc, 0.9, 6); scene.add(glowLight);
+  controls = new THREE.OrbitControls(camera, renderer.domElement);
+  controls.enablePan = true; controls.screenSpacePanning = true;
+  const resize = () => { const w = stage.clientWidth, h = stage.clientHeight; renderer.setSize(w, h, false); camera.aspect = w / Math.max(1, h); camera.updateProjectionMatrix(); };
+  new ResizeObserver(resize).observe(stage); resize();
+  hookDrag();
+  (function loop() { requestAnimationFrame(loop); renderer.render(scene, camera); })();
+}
+
+// ---------- an animal: its bones and skinned parts, in one pose of one of its clips
+function buildRig(data, color) {
+  const bones = data.nodes.map(n => { const b = new THREE.Bone(); b.position.set(...n.p); b.quaternion.set(...n.q); b.scale.set(...n.s); return b; });
+  data.nodes.forEach((n, i) => { if (n.parent >= 0) bones[n.parent].add(bones[i]); });
+  const meshes = [];
+  for (const part of data.parts) {
+    if (/sad(d)?el|saddle/i.test(part.name)) continue;
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.BufferAttribute(new Float32Array(part.v), 3));
+    g.setAttribute("skinIndex", new THREE.BufferAttribute(new Uint16Array(part.bi), 4));
+    g.setAttribute("skinWeight", new THREE.BufferAttribute(new Float32Array(part.bw), 4));
+    g.setIndex(part.t); g.computeVertexNormals();
+    const mesh = new THREE.SkinnedMesh(g, new THREE.MeshLambertMaterial({ color, side: THREE.DoubleSide, transparent: true, opacity: 0.55, depthWrite: true }));
+    mesh.frustumCulled = false;
+    const inv = part.bones.map((_, k) => new THREE.Matrix4().fromArray(part.bind, k * 16));
+    mesh.bind(new THREE.Skeleton(part.bones.map(n => n >= 0 ? bones[n] : bones[0]), inv), new THREE.Matrix4());
+    meshes.push(mesh);
+  }
+  return { bones, meshes };
+}
+const cache = {};
+async function loadData(name) {
+  if (!cache[name]) { const r = await fetch("data/" + name + ".json"); if (!r.ok) throw new Error("data/" + name + ".json: " + r.status); cache[name] = await r.json(); }
+  return cache[name];
+}
+let M = null, rig = null, mountName = "";
+function poseClip(label) {
+  const N = M.nodes.length, c = M.clips[label];
+  M.nodes.forEach((n, i) => { rig.bones[i].quaternion.set(...n.q); rig.bones[i].position.set(...n.p); });
+  if (c && c.frames.length) {
+    const f = c.frames[0];
+    for (const [k, v] of Object.entries(f.q)) rig.bones[+k].quaternion.set(...v);
+    for (const [k, v] of Object.entries(f.p || {})) rig.bones[+k].position.set(...v);
+  }
+  rig.bones[0].updateMatrixWorld(true);
+}
+// the middle of the body in this pose: the centre of the skinned vertices' box
+function bodyMiddle() {
+  const box = new THREE.Box3(), v = new THREE.Vector3();
+  for (const m of rig.meshes) {
+    const pos = m.geometry.attributes.position;
+    for (let i = 0; i < pos.count; i += 3) { v.fromBufferAttribute(pos, i); m.boneTransform(i, v); v.applyMatrix4(m.matrixWorld); box.expandByPoint(v); }
+  }
+  return box.isEmpty() ? new THREE.Vector3(0, 1, 0) : box.getCenter(new THREE.Vector3());
+}
+
+// ---------- the spots: per animal, per pose (this page's frame: x is the game's x mirrored)
+// SAVED[animal] = { idle: {x,y,z,size}, walk: ..., run: ... } in the game's frame, as stored
+const POSES = ["idle", "walk", "run"];
+const POSE_NAMES = { idle: "Standing", walk: "Walking", run: "Running" };
+const DRAKE_POSES = { idle: "Hovering", walk: "On the ground", run: "Flying forward" };
+const poseName = (m, p) => (m === "Hatchling" ? DRAKE_POSES : POSE_NAMES)[p] || p;
+let spot = { x: 0, y: 1, z: 0, size: DEFAULT_SIZE }, poseNow = "idle";
+const SAVED = {};
+const toPage = s => ({ x: -s.x, y: s.y, z: s.z, size: s.size || DEFAULT_SIZE });
+const toGame = s => ({ x: +(-s.x).toFixed(4), y: +s.y.toFixed(4), z: +s.z.toFixed(4), size: +s.size.toFixed(3) });
+// a stored doc: { poses: {idle: {...}, ...} }; the first version kept one spot at the top, read as the standing one
+function readDoc(d) {
+  const out = {};
+  if (d && d.poses) for (const p of POSES) if (d.poses[p] && isFinite(d.poses[p].y)) out[p] = d.poses[p];
+  if (!out.idle && d && isFinite(d.y)) out.idle = { x: d.x, y: d.y, z: d.z, size: d.size };
+  return out;
+}
+function placeLight() {
+  ball.position.set(spot.x, spot.y, spot.z);
+  ball.scale.setScalar(spot.size);
+  halo.position.copy(ball.position); halo.scale.setScalar(spot.size * 1.8);
+  pillar.position.set(spot.x, spot.y + PILLAR / 2, spot.z);
+  glowLight.position.copy(ball.position);
+  for (const [id, k] of [["px", "x"], ["py", "y"], ["pz", "z"], ["ps", "size"]]) {
+    // the side shows the game's own sign (right = +)
+    const shown = k === "x" ? -spot.x : spot[k];
+    $(id).value = shown; $(id + "v").textContent = shown.toFixed(k === "size" ? 2 : 3);
+  }
+  $("badge").textContent = (NAMES[mountName] || mountName) + " · " + poseName(mountName, poseNow) + " · light at side " + (-spot.x).toFixed(2) + ", height " + spot.y.toFixed(2) + ", forward " + spot.z.toFixed(2) + " m";
+}
+for (const [id, k] of [["px", "x"], ["py", "y"], ["pz", "z"], ["ps", "size"]]) {
+  $(id).addEventListener("input", () => { const v = parseFloat($(id).value); spot[k] = k === "x" ? -v : v; placeLight(); dirty(); });
+}
+$("bodyMid").onclick = () => { const c = bodyMiddle(); spot.x = c.x; spot.y = c.y; spot.z = c.z; placeLight(); dirty(); };
+$("centreX").onclick = () => { spot.x = 0; placeLight(); dirty(); };
+$("toAll").onclick = () => {
+  if (!SAVED[mountName]) SAVED[mountName] = {};
+  for (const p of POSES) if (M.clips[p]) SAVED[mountName][p] = toGame(spot);
+  dirty(true);
+};
+// every change is kept: in this page at once, in the shared store a moment later
+let saveTimer = null, saveFor = null;
+function dirty(all) {
+  if (!SAVED[mountName]) SAVED[mountName] = {};
+  if (!all) SAVED[mountName][poseNow] = toGame(spot);
+  drawSaved();
+  if (!db) { status("Changes stay in this page only: saving needs a signed-in view.", "warn"); return; }
+  status("Saving…");
+  if (saveTimer && saveFor !== mountName) flush();
+  saveFor = mountName;
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(flush, 700);
+}
+async function flush() {
+  clearTimeout(saveTimer); saveTimer = null;
+  const m = saveFor; if (!m || !db) return;
+  const doc = { poses: SAVED[m], savedAt: new Date().toISOString() };
+  try {
+    await db.doc("glow/" + m).set(doc);
+    if (m === mountName) status("Saved " + (NAMES[m] || m) + ": " + Object.keys(SAVED[m]).map(p => poseName(m, p)).join(", ") + ". Tell Claude when you're done.", "ok");
+  } catch (e) { status("Could not save " + m + " (" + (e && e.code || "error") + "). Move the ball again to retry.", "warn"); }
+}
+window.addEventListener("pagehide", () => { if (saveTimer) flush(); });
+
+// ---------- dragging the ball on a plane facing the camera
+function hookDrag() {
+  const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(), plane = new THREE.Plane(), hit = new THREE.Vector3(), grab = new THREE.Vector3();
+  let dragging = false;
+  const at = e => { const r = renderer.domElement.getBoundingClientRect(); ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1); ray.setFromCamera(ndc, camera); };
+  renderer.domElement.addEventListener("pointerdown", e => {
+    if (e.button !== 0) return;
+    at(e);
+    if (!ray.intersectObjects([ball, halo]).length) return;
+    dragging = true; controls.enabled = false;
+    const n = new THREE.Vector3(); camera.getWorldDirection(n);
+    plane.setFromNormalAndCoplanarPoint(n, ball.position);
+    if (ray.ray.intersectPlane(plane, hit)) grab.copy(ball.position).sub(hit);
+    renderer.domElement.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  });
+  renderer.domElement.addEventListener("pointermove", e => {
+    if (!dragging) return;
+    at(e);
+    if (!ray.ray.intersectPlane(plane, hit)) return;
+    hit.add(grab);
+    spot.x = hit.x; spot.y = hit.y; spot.z = hit.z; placeLight(); dirty();
+  });
+  const end = () => { if (!dragging) return; dragging = false; controls.enabled = true; };
+  renderer.domElement.addEventListener("pointerup", end);
+  renderer.domElement.addEventListener("pointercancel", end);
+}
+
+// ---------- views
+function setView(v) {
+  const c = ball.position.clone(), d = 6;
+  controls.target.copy(c);
+  const dir = { side: [1, 0.03, 0], front: [0, 0.03, 1], top: [0.001, 1, 0.001], "34": [0.8, 0.35, 0.9] }[v];
+  const l = Math.hypot(...dir);
+  camera.position.set(c.x + dir[0] / l * d, c.y + dir[1] / l * d, c.z + dir[2] / l * d);
+  controls.update();
+}
+document.querySelectorAll("[data-view]").forEach(b => b.onclick = () => setView(b.dataset.view));
+function applyOpacity() {
+  const o = $("opacity").value / 100;
+  $("opacityV").textContent = Math.round(o * 100) + "%";
+  if (rig) for (const m of rig.meshes) { m.material.opacity = o; m.material.transparent = o < 1; }
+}
+$("opacity").addEventListener("input", applyOpacity);
+
+// ---------- switching animals
+async function setMount(name) {
+  mountName = name; status("Loading " + name + "…");
+  try { M = await loadData(name); }
+  catch (e) { status("Could not load the model for " + name + ". Reload the page to try again.", "warn"); return; }
+  if (rig) { scene.remove(rig.bones[0]); for (const m of rig.meshes) { scene.remove(m); m.geometry.dispose(); m.material.dispose(); } }
+  rig = buildRig(M, COLORS[name] || 0x888888);
+  scene.add(rig.bones[0]); for (const m of rig.meshes) scene.add(m);
+  const labels = POSES.filter(l => M.clips[l]);
+  $("clip").innerHTML = labels.map(l => `<option value="${l}">${poseName(name, l)} — ${M.clips[l].clip}</option>`).join("") || `<option value="idle">model's own pose</option>`;
+  applyOpacity();
+  setPose(labels.includes(poseNow) ? poseNow : (labels[0] || "idle"));
+  setView("34");
+}
+// a pose: the animal in its first frame, the ball where it was saved for it (else where another pose has it,
+// else in the middle of the body)
+function setPose(p) {
+  poseNow = p; $("clip").value = p;
+  poseClip(p);
+  const all = SAVED[mountName] || {};
+  const s = all[p];
+  if (s) { spot = toPage(s); status("Saved spot for " + poseName(mountName, p) + ".", "ok"); }
+  else {
+    const other = POSES.map(q => all[q]).find(Boolean);
+    if (other) { spot = toPage(other); status(poseName(mountName, p) + " not saved yet: the ball starts where another pose has it.", "warn"); }
+    else { const c = bodyMiddle(); spot = { x: c.x, y: c.y, z: c.z, size: DEFAULT_SIZE }; status(poseName(mountName, p) + " not saved yet: the ball starts in the middle of the body.", "warn"); }
+  }
+  placeLight();
+}
+$("mount").innerHTML = MOUNTS.map(m => `<option value="${m}">${NAMES[m] || m}</option>`).join("");
+$("mount").addEventListener("change", () => { if (saveTimer) flush(); setMount($("mount").value); });
+$("clip").addEventListener("change", () => setPose($("clip").value));
+
+// ---------- the shared store: db doc glow/<animal> = { poses: {idle, walk, run}, savedAt }, in the game's frame
+let db = null;
+function drawSaved() {
+  $("savedList").innerHTML = MOUNTS.map(m => {
+    const n = Object.keys(SAVED[m] || {}).length, of = m === mountName && M ? POSES.filter(p => M.clips[p]).length : 3;
+    return `<span class="chip${n ? " on" : ""}">${m} ${n}/${of}</span>`;
+  }).join("");
+}
+async function connect() {
+  if (!window.claude || !window.claude.use) return;
+  db = await claude.use("db");
+  if (!db) { status("Changes stay in this page only: saving needs a signed-in view.", "warn"); return; }
+  try {
+    await Promise.all(MOUNTS.map(async m => {
+      const snap = await db.doc("glow/" + m).get();
+      const data = snap && snap.exists ? snap.data() : null;
+      const spots = readDoc(data);
+      if (Object.keys(spots).length) SAVED[m] = spots;
+    }));
+    drawSaved();
+    setPose(poseNow);
+  } catch (e) { status("Could not read the saved spots. Saving still works.", "warn"); }
+}
+
+initScene();
+drawSaved();
+setMount(MOUNTS[0]).then(connect);
+</script>

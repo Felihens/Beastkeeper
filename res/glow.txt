@@ -1,0 +1,13 @@
+# Where the totem light sits on each animal, per pose: <prefab> <pose> x y z ball-size
+# (its own frame, metres at scale 1). Made with the totem light editor; poses: idle (drake: hovering),
+# walk (drake: on the ground), run (drake: flying forward).
+Asksvin idle -0.0001 0.9480 0.1827 0.860
+Hatchling idle 0.0196 1.1200 0.1950 0.450
+Hatchling walk 0.0196 0.8100 0.4550 0.450
+Hatchling run 0.0196 1.1200 1.3400 0.450
+Lox idle 0.0000 1.8751 0.9285 1.500
+Moose idle 0.0032 2.1563 0.2662 0.900
+Seal idle -0.0003 0.3250 0.0900 0.560
+Wolf idle -0.0044 0.7024 -0.1950 0.450
+Wolf walk -0.0044 0.7024 0.3750 0.450
+Wolf run -0.0044 1.0150 0.4050 0.450

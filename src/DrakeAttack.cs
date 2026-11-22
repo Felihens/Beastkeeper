@@ -203,7 +203,8 @@ namespace Beastkeeper
         {
             if (Time.time < _nextShot || _pending != null || _burstLeft > 0) return;
             if (!Aiming) { Say("Hold the right mouse button to aim, then shoot with the left."); return; }
-            if (OverSea(c)) { Say("Your drake can't attack over deep water."); return; }
+            // with sea courage it fights over the sea too: it went out there for revenge on the serpents (2026-11-22, user)
+            if (OverSea(c) && !SeaCourage.Brave(c)) { Say("Your drake can't attack over deep water."); return; }
             if (!MayAttack(c)) { Say("Too high to attack: fly lower."); return; }
             int el = ElementOf(c);
             if (ShotOf(el) == null) { Say("Your drake has no attack."); return; }

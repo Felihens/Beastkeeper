@@ -1,6 +1,6 @@
 {
   "name": "Beastkeeper",
-  "version_number": "0.8.5",
+  "version_number": "0.8.6",
   "website_url": "https://github.com/Felihens/Beastkeeper",
   "description": "Catch animals with a lasso, tame them with a halter, saddle and ride them (even the sea serpent). Tie them up, keep them home with a totem where they heal, breed hares and hatch drakes to fly.",
   "dependencies": [
